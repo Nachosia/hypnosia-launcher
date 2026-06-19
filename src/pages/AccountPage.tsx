@@ -3,8 +3,64 @@ import { User, Link2, LogOut, Shield, Gamepad2, Loader2, CheckCircle2, AlertCirc
 import { useAccount } from '../hooks/useAccount';
 import { checkForUpdate, installUpdate, onUpdaterProgress, type UpdateInfo, type UpdateProgress } from '../lib/updater';
 
+function AccountSkeleton() {
+  return (
+    <div className="h-full overflow-y-auto p-10">
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-3 w-32 bg-muted/20 rounded animate-pulse" />
+            <div className="h-8 w-48 bg-text/10 rounded animate-pulse" />
+          </div>
+          <div className="h-10 w-28 bg-text/10 rounded-xl animate-pulse" />
+        </div>
+
+        <div className="glass-panel rounded-2xl p-6 flex items-center gap-5">
+          <div className="w-20 h-20 rounded-2xl bg-text/10 animate-pulse" />
+          <div className="flex-1 space-y-3">
+            <div className="h-6 w-48 bg-text/10 rounded animate-pulse" />
+            <div className="h-4 w-32 bg-muted/20 rounded animate-pulse" />
+            <div className="flex gap-2">
+              <div className="h-5 w-20 bg-text/10 rounded-full animate-pulse" />
+              <div className="h-5 w-20 bg-text/10 rounded-full animate-pulse" />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="glass-panel rounded-2xl p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-text/10 animate-pulse" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 w-20 bg-muted/20 rounded animate-pulse" />
+                <div className="h-4 w-28 bg-text/10 rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="glass-panel rounded-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-text/10 animate-pulse" />
+                <div className="space-y-2">
+                  <div className="h-5 w-32 bg-text/10 rounded animate-pulse" />
+                  <div className="h-3 w-48 bg-muted/20 rounded animate-pulse" />
+                </div>
+              </div>
+              <div className="h-9 w-28 bg-text/10 rounded-xl animate-pulse" />
+            </div>
+            <div className="h-16 bg-text/5 rounded-xl animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AccountPage() {
-  const { account, isLoading, isAuthenticated, login, loginHwid, logout, linkMinecraft, linkDiscord } = useAccount();
+  const { account, isLoading, isAuthenticated, login, loginHwid, logout, linkMinecraft, linkDiscord, refresh } = useAccount();
   const [linkCode, setLinkCode] = useState('');
   const [linking, setLinking] = useState(false);
   const [linkSuccess, setLinkSuccess] = useState(false);
@@ -16,6 +72,7 @@ export default function AccountPage() {
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [installProgress, setInstallProgress] = useState<UpdateProgress | null>(null);
   const [installSuccess, setInstallSuccess] = useState(false);
+  const [refreshing, setRefreshing] = useState(true);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -28,6 +85,17 @@ export default function AccountPage() {
       if (unlisten) unlisten();
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    setRefreshing(true);
+    refresh().finally(() => {
+      if (mounted) setRefreshing(false);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [refresh]);
 
   const handleCheckUpdate = async () => {
     setCheckingUpdate(true);
@@ -95,15 +163,8 @@ export default function AccountPage() {
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="text-green animate-spin" size={32} />
-          <p className="font-mono text-sm text-muted">Проверка устройства...</p>
-        </div>
-      </div>
-    );
+  if (isLoading || refreshing) {
+    return <AccountSkeleton />;
   }
 
   if (!isAuthenticated) {
