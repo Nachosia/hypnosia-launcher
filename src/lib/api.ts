@@ -5,18 +5,26 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://nachosia.site';
 
 // Get stable hardware ID from Tauri (OS info based hash)
 export async function getHardwareId(): Promise<string> {
+  const STORAGE_KEY = 'hypnosia_hwid';
   try {
-    return await invoke<string>('get_hwid');
-  } catch {
-    // Fallback for browser/dev — 64 hex chars to match License Server format
-    let hwid = localStorage.getItem('hypnosia_hwid');
+    const hwid = await invoke<string>('get_hwid');
+    // Persist successful HWID so later calls use the same value even if invoke fails
+    localStorage.setItem(STORAGE_KEY, hwid);
+    console.log('[HWID] using native:', hwid.slice(0, 16));
+    return hwid;
+  } catch (err) {
+    // Fallback for browser/dev — reuse persisted value if available
+    let hwid = localStorage.getItem(STORAGE_KEY);
     if (!hwid) {
       const bytes = new Uint8Array(32);
       crypto.getRandomValues(bytes);
       hwid = Array.from(bytes)
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('');
-      localStorage.setItem('hypnosia_hwid', hwid);
+      localStorage.setItem(STORAGE_KEY, hwid);
+      console.warn('[HWID] generated fallback:', hwid.slice(0, 16));
+    } else {
+      console.warn('[HWID] using persisted fallback:', hwid.slice(0, 16), err);
     }
     return hwid;
   }
@@ -72,22 +80,23 @@ function mapServerAccount(data: {
 
 export async function fetchAccountByHwid(hwid: string): Promise<Account | null> {
   try {
-    const response = await fetch(
-      `${API_BASE}/api/launcher/me?hwid=${encodeURIComponent(hwid)}`
-    );
+    const url = `${API_BASE}/api/launcher/me?hwid=${encodeURIComponent(hwid)}`;
+    console.log('[API] fetching:', url);
+    const response = await fetch(url);
 
     if (!response.ok) {
       throw new Error(`Server error: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('[API] /me response:', data.authenticated, data.user?.name);
     if (!data.authenticated) {
       return null;
     }
 
     return mapServerAccount(data);
   } catch (error) {
-    console.error('Failed to fetch account by HWID:', error);
+    console.error('[API] Failed to fetch account by HWID:', error);
     return null;
   }
 }
@@ -121,25 +130,27 @@ export async function loginWithDiscord(): Promise<Account> {
   // Poll server until the user completes OAuth in the browser
   return new Promise((resolve, reject) => {
     let attempts = 0;
-    const maxAttempts = 120; // 6 minutes
+    const maxAttempts = 240; // 6 minutes
     const interval = setInterval(async () => {
       attempts++;
       try {
+        console.log('[DiscordAuth] polling attempt', attempts);
         const account = await fetchAccountByHwid(hwid);
         if (account) {
+          console.log('[DiscordAuth] account found:', account.username);
           clearInterval(interval);
           resolve(account);
           return;
         }
-      } catch {
-        // ignore polling errors
+      } catch (err) {
+        console.warn('[DiscordAuth] polling error:', err);
       }
 
       if (attempts >= maxAttempts) {
         clearInterval(interval);
         reject(new Error('Timeout waiting for Discord authorization'));
       }
-    }, 3000);
+    }, 1500);
   });
 }
 
