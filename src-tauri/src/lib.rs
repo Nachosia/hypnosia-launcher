@@ -69,30 +69,52 @@ struct UpdateInfo {
 
 #[tauri::command]
 async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
-    let updater = app.updater().map_err(|e| e.to_string())?;
-    match updater.check().await.map_err(|e| e.to_string())? {
-        Some(update) => Ok(Some(UpdateInfo {
-            version: update.version,
-            body: update.body,
-        })),
-        None => Ok(None),
+    log::info!("check_update invoked");
+    let updater = app.updater().map_err(|e| {
+        log::error!("updater init failed: {}", e);
+        e.to_string()
+    })?;
+    match updater.check().await.map_err(|e| {
+        log::error!("updater check failed: {}", e);
+        e.to_string()
+    })? {
+        Some(update) => {
+            log::info!("update available: {}", update.version);
+            Ok(Some(UpdateInfo {
+                version: update.version,
+                body: update.body,
+            }))
+        }
+        None => {
+            log::info!("no update available");
+            Ok(None)
+        }
     }
 }
 
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
-    let updater = app.updater().map_err(|e| e.to_string())?;
+    log::info!("install_update invoked");
+    let updater = app.updater().map_err(|e| {
+        log::error!("updater init failed: {}", e);
+        e.to_string()
+    })?;
     let update = updater
         .check()
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| {
+            log::error!("updater check failed: {}", e);
+            e.to_string()
+        })?
         .ok_or("No update available")?;
 
+    log::info!("downloading update {} from {:?}", update.version, update.download_url);
     let app_handle = app.clone();
     let app_handle2 = app.clone();
     update
         .download_and_install(
             move |chunk_length, content_length| {
+                log::debug!("download progress {}/{:?}", chunk_length, content_length);
                 let _ = app_handle.emit(
                     "updater-progress",
                     serde_json::json!({
@@ -102,11 +124,15 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
                 );
             },
             move || {
+                log::info!("download finished");
                 let _ = app_handle2.emit("updater-progress", serde_json::json!({"finished": true}));
             },
         )
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            log::error!("download_and_install failed: {}", e);
+            e.to_string()
+        })?;
 
     Ok(())
 }
@@ -122,13 +148,14 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_updater::Builder::default().build())
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("hypnosia-launcher".into()),
+                    }))
+                    .build(),
+            )?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

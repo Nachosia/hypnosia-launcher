@@ -62,14 +62,26 @@ function mapServerAccount(data: {
     linked: boolean;
     accountId: number | null;
     displayName: string | null;
-    skinUrl?: string | null;
-    skinModel?: 'classic' | 'slim' | string | null;
   };
   discordLinked?: boolean;
   accountId?: number;
   createdAt?: string;
+  skinUrl?: string | null;
+  skinModel?: 'classic' | 'slim' | string | null;
+  totalMinutes?: number;
+  weeklyMinutes?: number;
+  hoursPlayed?: number;
+  mcJoined?: string;
+  siteJoined?: string;
+  isOnline?: boolean;
+  allRoles?: string[];
+  customRoleName?: string;
+  activity?: { date: string; dayName: string; hours: number }[];
+  topServers?: { serverIp: string; displayName?: string; totalMinutes: number }[];
 }): Account {
   const accountId = data.accountId ?? data.minecraft.accountId ?? 0;
+  const resolvedSkinUrl = data.skinUrl ?? undefined;
+  const resolvedSkinModel = data.skinModel ?? undefined;
   return {
     id: data.user.discordId || String(accountId || 'hwid'),
     username: data.user.name,
@@ -79,10 +91,20 @@ function mapServerAccount(data: {
     discordLinked: data.discordLinked ?? !!data.user.discordId,
     minecraftLinked: data.minecraft.linked,
     minecraftUsername: data.minecraft.displayName || undefined,
-    skinUrl: data.minecraft.skinUrl || undefined,
-    skinModel: data.minecraft.skinModel === 'slim' ? 'slim' : 'classic',
+    skinUrl: resolvedSkinUrl || undefined,
+    skinModel: resolvedSkinModel === 'slim' ? 'slim' : 'classic',
     accountId: accountId || undefined,
     registeredAt: data.createdAt,
+    totalMinutes: data.totalMinutes,
+    weeklyMinutes: data.weeklyMinutes,
+    hoursPlayed: data.hoursPlayed,
+    mcJoined: data.mcJoined,
+    siteJoined: data.siteJoined,
+    isOnline: data.isOnline,
+    allRoles: data.allRoles,
+    customRoleName: data.customRoleName,
+    activity: data.activity,
+    topServers: data.topServers,
   };
 }
 
