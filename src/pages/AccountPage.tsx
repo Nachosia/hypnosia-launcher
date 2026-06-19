@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { User, Link2, LogOut, Shield, Gamepad2, Loader2, CheckCircle2, AlertCircle, BadgeCheck, Fingerprint, CalendarDays, RefreshCw, Download } from 'lucide-react';
 import { useAccount } from '../hooks/useAccount';
 import { checkForUpdate, installUpdate, onUpdaterProgress, type UpdateInfo, type UpdateProgress } from '../lib/updater';
+import ProfileSection from '../components/ProfileSection';
 
 function AccountSkeleton() {
   return (
@@ -72,6 +73,32 @@ export default function AccountPage() {
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [installProgress, setInstallProgress] = useState<UpdateProgress | null>(null);
   const [installSuccess, setInstallSuccess] = useState(false);
+
+  // Mock profile preview data merged with the real account
+  const profileAccount = useMemo(() => {
+    if (!account) return null;
+    return {
+      ...account,
+      skinModel: 'classic' as const,
+      nickGradientFrom: '#80FF97',
+      nickGradientTo: '#6BB7FF',
+      roleGradientFrom: '#6BB7FF',
+      roleGradientTo: '#FFD700',
+      hoursPlayed: 124,
+      weeklyMinutes: 720,
+      totalMinutes: 7440,
+      mcJoined: '2024-01-15',
+      siteJoined: account.registeredAt || '2024-01-15',
+      isOnline: false,
+      showHours: true,
+      showMcJoined: true,
+      showOnline: true,
+      showRank: true,
+      allRoles: [account.role],
+      customRoleName: undefined,
+      configsUploaded: 3,
+    };
+  }, [account]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -269,6 +296,11 @@ export default function AccountPage() {
             </div>
           </div>
         </div>
+
+        {/* Detailed profile preview (Discord-linked only) */}
+        {account?.discordLinked && profileAccount && (
+          <ProfileSection account={profileAccount} />
+        )}
 
         {/* Account info badges */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
