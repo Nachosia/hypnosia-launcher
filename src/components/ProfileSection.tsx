@@ -52,24 +52,44 @@ function formatDate(iso?: string): string {
 export default function ProfileSection({ account, onLinkDiscord }: ProfileSectionProps) {
   if (!account.discordLinked) {
     return (
-      <div className="glass-panel rounded-2xl p-8 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-border flex items-center justify-center mx-auto mb-4">
-          <Lock size={28} className="text-muted" />
-        </div>
-        <h3 className="font-bold text-xl text-text mb-2">Профиль недоступен</h3>
-        <p className="text-sm text-text-secondary max-w-md mx-auto mb-6">
-          Данные функции доступны только с привязкой аккаунта Discord либо полной регистрацией на сайте и привязкой аккаунта.
-        </p>
-        {onLinkDiscord && (
-          <button
-            onClick={onLinkDiscord}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all hover:scale-[1.02]"
-            style={{ background: 'linear-gradient(135deg, #5865F2, #4752C4)' }}
+      <div className="glass-panel rounded-2xl p-6">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div
+            className="flex-shrink-0 flex items-center justify-center rounded-2xl overflow-hidden"
+            style={{
+              width: 180,
+              height: 180,
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}
           >
-            <Link2 size={16} />
-            Привязать Discord
-          </button>
-        )}
+            <img
+              src="https://mc-heads.net/avatar/fe008fc7387e4477a8260219bd8c0c13/180"
+              alt="Steve"
+              className="w-full h-full"
+              style={{ imageRendering: 'pixelated' }}
+            />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+              <Lock size={18} className="text-muted" />
+              <h3 className="font-bold text-xl text-text">Профиль недоступен</h3>
+            </div>
+            <p className="text-sm text-text-secondary mb-4">
+              Данные функции доступны только с привязкой аккаунта Discord либо полной регистрацией на сайте и привязкой аккаунта.
+            </p>
+            {onLinkDiscord && (
+              <button
+                onClick={onLinkDiscord}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:scale-[1.02]"
+                style={{ background: 'linear-gradient(135deg, #5865F2, #4752C4)' }}
+              >
+                <Link2 size={16} />
+                Привязать Discord
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -78,8 +98,9 @@ export default function ProfileSection({ account, onLinkDiscord }: ProfileSectio
 }
 
 function ProfileContent({ account }: { account: Account }) {
-  const [skinModel, setSkinModel] = useState<'classic' | 'slim'>(account.skinModel || 'classic');
-  const [skinPreview, setSkinPreview] = useState<string | null>(account.skinUrl || null);
+  const skinModel = account.skinModel || 'classic';
+  const skinUrl = account.skinUrl || null;
+  const [skinPreview, setSkinPreview] = useState<string | null>(skinUrl);
 
   const [nickFrom, setNickFrom] = useState(account.nickGradientFrom || '#80FF97');
   const [nickTo, setNickTo] = useState(account.nickGradientTo || '#6BB7FF');
@@ -132,49 +153,27 @@ function ProfileContent({ account }: { account: Account }) {
         <div className="flex flex-col md:flex-row items-start gap-6">
           {/* 3D Skin preview */}
           <div className="flex-shrink-0 w-full md:w-auto flex flex-col items-center gap-3">
-            <div
-              className="flex items-center justify-center rounded-2xl overflow-hidden"
-              style={{
-                width: 240,
-                height: 240,
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.08)',
-              }}
-            >
-              <SkinViewer3D skinUrl={skinPreview} skinModel={skinModel} width={240} height={240} />
+            <div className="flex items-center justify-center">
+              <SkinViewer3D skinUrl={skinPreview} skinModel={skinModel} size={240} />
             </div>
 
             <div className="flex items-center gap-2 w-full">
-              <button
-                onClick={() => setSkinModel('classic')}
-                className={`flex-1 py-2 rounded-xl font-mono text-xs transition-all ${
-                  skinModel === 'classic'
-                    ? 'text-bg'
-                    : 'text-text-secondary hover:text-text bg-white/[0.03] border border-border'
+              <span
+                className={`flex-1 py-2 rounded-xl font-mono text-xs text-center ${
+                  skinModel === 'classic' ? 'text-bg' : 'text-text-secondary bg-white/[0.03] border border-border'
                 }`}
-                style={
-                  skinModel === 'classic'
-                    ? { background: 'linear-gradient(135deg, #80FF97, #6BB7FF)' }
-                    : undefined
-                }
+                style={skinModel === 'classic' ? { background: 'linear-gradient(135deg, #80FF97, #6BB7FF)' } : undefined}
               >
                 Стив
-              </button>
-              <button
-                onClick={() => setSkinModel('slim')}
-                className={`flex-1 py-2 rounded-xl font-mono text-xs transition-all ${
-                  skinModel === 'slim'
-                    ? 'text-bg'
-                    : 'text-text-secondary hover:text-text bg-white/[0.03] border border-border'
+              </span>
+              <span
+                className={`flex-1 py-2 rounded-xl font-mono text-xs text-center ${
+                  skinModel === 'slim' ? 'text-bg' : 'text-text-secondary bg-white/[0.03] border border-border'
                 }`}
-                style={
-                  skinModel === 'slim'
-                    ? { background: 'linear-gradient(135deg, #80FF97, #6BB7FF)' }
-                    : undefined
-                }
+                style={skinModel === 'slim' ? { background: 'linear-gradient(135deg, #80FF97, #6BB7FF)' } : undefined}
               >
                 Алекс
-              </button>
+              </span>
             </div>
 
             <label className="w-full cursor-pointer">
@@ -497,28 +496,22 @@ function ProfileContent({ account }: { account: Account }) {
           Выбранная модель: <span className="text-green font-mono">{skinModel === 'classic' ? 'Стив (Classic)' : 'Алекс (Slim)'}</span>
         </p>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSkinModel('classic')}
-            className={`px-4 py-2 rounded-xl font-mono text-xs transition-all ${
-              skinModel === 'classic'
-                ? 'text-bg'
-                : 'text-text-secondary bg-white/[0.03] border border-border'
+          <span
+            className={`px-4 py-2 rounded-xl font-mono text-xs ${
+              skinModel === 'classic' ? 'text-bg' : 'text-text-secondary bg-white/[0.03] border border-border'
             }`}
             style={skinModel === 'classic' ? { background: 'linear-gradient(135deg, #80FF97, #6BB7FF)' } : undefined}
           >
             Стив (Classic)
-          </button>
-          <button
-            onClick={() => setSkinModel('slim')}
-            className={`px-4 py-2 rounded-xl font-mono text-xs transition-all ${
-              skinModel === 'slim'
-                ? 'text-bg'
-                : 'text-text-secondary bg-white/[0.03] border border-border'
+          </span>
+          <span
+            className={`px-4 py-2 rounded-xl font-mono text-xs ${
+              skinModel === 'slim' ? 'text-bg' : 'text-text-secondary bg-white/[0.03] border border-border'
             }`}
             style={skinModel === 'slim' ? { background: 'linear-gradient(135deg, #80FF97, #6BB7FF)' } : undefined}
           >
             Алекс (Slim)
-          </button>
+          </span>
         </div>
       </div>
     </div>

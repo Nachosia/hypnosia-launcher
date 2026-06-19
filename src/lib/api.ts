@@ -58,7 +58,13 @@ export async function launchMinecraft(
 
 function mapServerAccount(data: {
   user: { discordId?: string; name: string; avatar?: string | null; role: string };
-  minecraft: { linked: boolean; accountId: number | null; displayName: string | null };
+  minecraft: {
+    linked: boolean;
+    accountId: number | null;
+    displayName: string | null;
+    skinUrl?: string | null;
+    skinModel?: 'classic' | 'slim' | string | null;
+  };
   discordLinked?: boolean;
   accountId?: number;
   createdAt?: string;
@@ -73,6 +79,8 @@ function mapServerAccount(data: {
     discordLinked: data.discordLinked ?? !!data.user.discordId,
     minecraftLinked: data.minecraft.linked,
     minecraftUsername: data.minecraft.displayName || undefined,
+    skinUrl: data.minecraft.skinUrl || undefined,
+    skinModel: data.minecraft.skinModel === 'slim' ? 'slim' : 'classic',
     accountId: accountId || undefined,
     registeredAt: data.createdAt,
   };

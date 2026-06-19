@@ -79,11 +79,10 @@ export default function AccountPage() {
     if (!account) return null;
     return {
       ...account,
-      skinModel: 'classic' as const,
-      nickGradientFrom: '#80FF97',
-      nickGradientTo: '#6BB7FF',
-      roleGradientFrom: '#6BB7FF',
-      roleGradientTo: '#FFD700',
+      nickGradientFrom: account.nickGradientFrom || '#80FF97',
+      nickGradientTo: account.nickGradientTo || '#6BB7FF',
+      roleGradientFrom: account.roleGradientFrom || '#6BB7FF',
+      roleGradientTo: account.roleGradientTo || '#FFD700',
       hoursPlayed: 124,
       weeklyMinutes: 720,
       totalMinutes: 7440,
