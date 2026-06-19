@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { Account } from '../types/account';
+import type { Account, ProfileActivity, ProfileServerStats } from '../types/account';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://nachosia.site';
 
@@ -73,15 +73,35 @@ function mapServerAccount(data: {
   hoursPlayed?: number;
   mcJoined?: string;
   siteJoined?: string;
-  isOnline?: boolean;
+  isOnline?: boolean | string;
+  showHours?: boolean | string;
+  showMcJoined?: boolean | string;
   allRoles?: string[];
   customRoleName?: string;
-  activity?: { date: string; dayName: string; hours: number }[];
-  topServers?: { serverIp: string; displayName?: string; totalMinutes: number }[];
+  playtimeBanned?: boolean;
+  playtimeFrozen?: boolean;
+  configsUploaded?: number;
 }): Account {
   const accountId = data.accountId ?? data.minecraft.accountId ?? 0;
-  const resolvedSkinUrl = data.skinUrl ?? undefined;
+  const resolvedSkinUrl = data.skinUrl
+    ? data.skinUrl.startsWith('http')
+      ? data.skinUrl
+      : `${API_BASE}${data.skinUrl}`
+    : undefined;
   const resolvedSkinModel = data.skinModel ?? undefined;
+
+  const parseMinutes = (v?: number | string): number | undefined => {
+    if (v === undefined || v === null) return undefined;
+    const n = typeof v === 'string' ? Number(v) : v;
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+
+  const parseBoolString = (v?: boolean | string): boolean => {
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'string') return v === 'true';
+    return false;
+  };
+
   return {
     id: data.user.discordId || String(accountId || 'hwid'),
     username: data.user.name,
@@ -95,17 +115,44 @@ function mapServerAccount(data: {
     skinModel: resolvedSkinModel === 'slim' ? 'slim' : 'classic',
     accountId: accountId || undefined,
     registeredAt: data.createdAt,
-    totalMinutes: data.totalMinutes,
-    weeklyMinutes: data.weeklyMinutes,
+    totalMinutes: parseMinutes(data.totalMinutes),
+    weeklyMinutes: parseMinutes(data.weeklyMinutes),
     hoursPlayed: data.hoursPlayed,
     mcJoined: data.mcJoined,
     siteJoined: data.siteJoined,
-    isOnline: data.isOnline,
+    isOnline: parseBoolString(data.isOnline),
+    showHours: parseBoolString(data.showHours),
+    showMcJoined: parseBoolString(data.showMcJoined),
     allRoles: data.allRoles,
     customRoleName: data.customRoleName,
-    activity: data.activity,
-    topServers: data.topServers,
+    playtimeBanned: data.playtimeBanned,
+    playtimeFrozen: data.playtimeFrozen,
+    configsUploaded: data.configsUploaded,
   };
+}
+
+export async function fetchProfileActivity(hwid: string): Promise<ProfileActivity[] | null> {
+  try {
+    const url = `${API_BASE}/api/launcher/profile/activity?hwid=${encodeURIComponent(hwid)}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return (await response.json()) as ProfileActivity[];
+  } catch (error) {
+    console.error('[API] Failed to fetch profile activity:', error);
+    return null;
+  }
+}
+
+export async function fetchProfileServerStats(hwid: string): Promise<ProfileServerStats | null> {
+  try {
+    const url = `${API_BASE}/api/launcher/profile/server-stats?hwid=${encodeURIComponent(hwid)}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return (await response.json()) as ProfileServerStats;
+  } catch (error) {
+    console.error('[API] Failed to fetch profile server stats:', error);
+    return null;
+  }
 }
 
 export async function fetchAccountByHwid(hwid: string): Promise<Account | null> {
@@ -124,7 +171,23 @@ export async function fetchAccountByHwid(hwid: string): Promise<Account | null> 
       return null;
     }
 
-    return mapServerAccount(data);
+    const account = mapServerAccount(data);
+
+    // Load activity and server stats in parallel
+    const [activity, serverStats] = await Promise.all([
+      fetchProfileActivity(hwid),
+      fetchProfileServerStats(hwid),
+    ]);
+
+    if (activity) account.activity = activity;
+    if (serverStats) {
+      account.topServers = serverStats.topServers;
+      if (serverStats.playtimeBanned !== undefined) {
+        account.playtimeBanned = serverStats.playtimeBanned;
+      }
+    }
+
+    return account;
   } catch (error) {
     console.error('[API] Failed to fetch account by HWID:', error);
     return null;

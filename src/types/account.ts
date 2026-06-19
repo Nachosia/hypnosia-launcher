@@ -1,3 +1,20 @@
+export interface ProfileActivity {
+  date: string;
+  dayName: string;
+  hours: number;
+}
+
+export interface TopServer {
+  serverIp: string;
+  displayName?: string;
+  totalMinutes: number;
+}
+
+export interface ProfileServerStats {
+  playtimeBanned?: boolean;
+  topServers: TopServer[];
+}
+
 export interface Account {
   id: string;
   username: string;
@@ -10,7 +27,7 @@ export interface Account {
   accountId?: number;
   registeredAt?: string;
 
-  // Profile preview fields (mock / future backend)
+  // Profile fields
   skinUrl?: string;
   skinModel?: 'classic' | 'slim';
   nickGradientFrom?: string;
@@ -30,8 +47,10 @@ export interface Account {
   allRoles?: string[];
   customRoleName?: string;
   configsUploaded?: number;
-  activity?: { date: string; dayName: string; hours: number }[];
-  topServers?: { serverIp: string; displayName?: string; totalMinutes: number }[];
+  playtimeBanned?: boolean;
+  playtimeFrozen?: boolean;
+  activity?: ProfileActivity[];
+  topServers?: TopServer[];
 }
 
 export interface AuthState {

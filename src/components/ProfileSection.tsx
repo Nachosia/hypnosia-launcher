@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Upload, Shirt, Palette, Activity, Server, Clock, CalendarDays, User, Lock, Link2 } from 'lucide-react';
 import type { Account } from '../types/account';
 import SkinViewer3D from './SkinViewer3D';
@@ -115,36 +115,14 @@ function ProfileContent({ account }: { account: Account }) {
   const hasNickGradient = !!nickFrom && !!nickTo;
   const hasRoleGradient = !!roleFrom && !!roleTo;
 
-  const activity = useMemo(
-    () =>
-      account.activity?.length
-        ? account.activity
-        : [
-            { date: '2026-06-13', dayName: 'Пн', hours: 2 },
-            { date: '2026-06-14', dayName: 'Вт', hours: 5 },
-            { date: '2026-06-15', dayName: 'Ср', hours: 0 },
-            { date: '2026-06-16', dayName: 'Чт', hours: 3 },
-            { date: '2026-06-17', dayName: 'Пт', hours: 7 },
-            { date: '2026-06-18', dayName: 'Сб', hours: 4 },
-            { date: '2026-06-19', dayName: 'Вс', hours: 1 },
-          ],
-    [account.activity]
-  );
+  const activity = account.activity ?? [];
+  const topServers = account.topServers ?? [];
 
-  const topServers = useMemo(
-    () =>
-      account.topServers?.length
-        ? account.topServers
-        : [
-            { serverIp: 'mc.hypnosia.site', displayName: 'Hypnosia Main', totalMinutes: 4200 },
-            { serverIp: '2b2t.org.ru', displayName: '2B2T', totalMinutes: 1800 },
-            { serverIp: 'fun.minecraft.ru', displayName: 'FunCraft', totalMinutes: 600 },
-          ],
-    [account.topServers]
-  );
+  const hasActivity = activity.length > 0;
+  const hasTopServers = topServers.length > 0 && !account.playtimeFrozen && account.playtimeBanned !== true;
 
-  const maxActivityHours = Math.max(...activity.map((d) => d.hours), 1);
-  const maxServerMinutes = Math.max(...topServers.map((s) => s.totalMinutes), 1);
+  const maxActivityHours = hasActivity ? Math.max(...activity.map((d) => d.hours), 1) : 1;
+  const maxServerMinutes = hasTopServers ? Math.max(...topServers.map((s) => s.totalMinutes), 1) : 1;
 
   return (
     <div className="space-y-6">
@@ -266,7 +244,13 @@ function ProfileContent({ account }: { account: Account }) {
                   <Clock size={10} /> Total Time
                 </p>
                 <p className="font-semibold text-text" style={{ color: rc.color }}>
-                  {formatPlaytime(account.totalMinutes ?? Math.round((account.hoursPlayed || 0) * 60))}
+                  {account.playtimeBanned === true
+                    ? 'Заблокировано'
+                    : account.playtimeFrozen === true
+                    ? 'Заморожено'
+                    : account.showHours === false
+                    ? 'Скрыто'
+                    : formatPlaytime(account.totalMinutes ?? Math.round((account.hoursPlayed || 0) * 60))}
                 </p>
               </div>
               <div className="rounded-xl p-3 bg-bg-secondary/50 border border-green/10">
@@ -274,14 +258,18 @@ function ProfileContent({ account }: { account: Account }) {
                   <Activity size={10} /> 7 Days
                 </p>
                 <p className="font-semibold text-text" style={{ color: rc.color }}>
-                  {formatPlaytime(account.weeklyMinutes ?? 0)}
+                  {account.playtimeBanned === true || account.playtimeFrozen === true || account.showHours === false
+                    ? '—'
+                    : formatPlaytime(account.weeklyMinutes ?? 0)}
                 </p>
               </div>
               <div className="rounded-xl p-3 bg-bg-secondary/50 border border-green/10">
                 <p className="font-mono text-[10px] text-muted uppercase mb-1 flex items-center gap-1">
                   <User size={10} /> Joined
                 </p>
-                <p className="font-semibold text-text">{account.mcJoined || '—'}</p>
+                <p className="font-semibold text-text">
+                  {account.showMcJoined === false ? 'Скрыто' : account.mcJoined || '—'}
+                </p>
               </div>
               <div className="rounded-xl p-3 bg-bg-secondary/50 border border-green/10">
                 <p className="font-mono text-[10px] text-muted uppercase mb-1 flex items-center gap-1">
@@ -298,29 +286,33 @@ function ProfileContent({ account }: { account: Account }) {
       <div className="glass-panel rounded-2xl p-6">
         <p className="font-mono text-xs tracking-wide text-muted mb-4">LAST 7 DAYS ACTIVITY</p>
         <div className="flex items-end gap-3" style={{ height: 100 }}>
-          {activity.map((day) => {
-            const pct = (day.hours / maxActivityHours) * 100;
-            return (
-              <div key={day.date} className="flex-1 flex flex-col items-center gap-1.5">
-                <span className="font-mono text-[10px]" style={{ color: rc.color, opacity: 0.8 }}>
-                  {day.hours}h
-                </span>
-                <div
-                  className="w-full rounded-t overflow-hidden"
-                  style={{ height: `${Math.max(pct * 0.7, 4)}px` }}
-                >
+          {hasActivity ? (
+            activity.map((day) => {
+              const pct = (day.hours / maxActivityHours) * 100;
+              return (
+                <div key={day.date} className="flex-1 flex flex-col items-center gap-1.5">
+                  <span className="font-mono text-[10px]" style={{ color: rc.color, opacity: 0.8 }}>
+                    {day.hours}h
+                  </span>
                   <div
-                    className="w-full h-full"
-                    style={{
-                      background: 'linear-gradient(180deg, #80FF97 0%, #6BB7FF 100%)',
-                      opacity: day.hours >= 1 ? 1 : 0.3,
-                    }}
-                  />
+                    className="w-full rounded-t overflow-hidden"
+                    style={{ height: `${Math.max(pct * 0.7, 4)}px` }}
+                  >
+                    <div
+                      className="w-full h-full"
+                      style={{
+                        background: 'linear-gradient(180deg, #80FF97 0%, #6BB7FF 100%)',
+                        opacity: day.hours >= 1 ? 1 : 0.3,
+                      }}
+                    />
+                  </div>
+                  <span className="font-mono text-[10px] text-muted">{day.dayName}</span>
                 </div>
-                <span className="font-mono text-[10px] text-muted">{day.dayName}</span>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <p className="font-mono text-xs text-muted">Нет данных</p>
+          )}
         </div>
       </div>
 
@@ -330,29 +322,41 @@ function ProfileContent({ account }: { account: Account }) {
           <Server size={14} /> СТАТИСТИКА ПО СЕРВЕРАМ
         </p>
         <div className="flex flex-col gap-3">
-          {topServers.map((srv, idx) => {
-            const pct = Math.max(5, Math.round((srv.totalMinutes / maxServerMinutes) * 100));
-            return (
-              <div key={srv.serverIp} className="flex items-center gap-3">
-                <span className="font-mono text-xs w-6 text-center text-muted">{idx + 1}</span>
-                <span className="text-sm w-32 truncate text-text" title={srv.displayName || srv.serverIp}>
-                  {srv.displayName || srv.serverIp}
-                </span>
-                <div className="flex-1 h-2 rounded-full overflow-hidden bg-white/[0.06]">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${pct}%`,
-                      background: 'linear-gradient(90deg, #80FF97 0%, #6BB7FF 100%)',
-                    }}
-                  />
+          {account.playtimeFrozen === true ? (
+            <p className="font-mono text-xs" style={{ color: '#FFC832' }}>
+              Статистика недоступна — аккаунт заморожен
+            </p>
+          ) : account.playtimeBanned === true ? (
+            <p className="font-mono text-xs" style={{ color: '#FF6464' }}>
+              Статистика заблокирована
+            </p>
+          ) : hasTopServers ? (
+            topServers.map((srv, idx) => {
+              const pct = Math.max(5, Math.round((srv.totalMinutes / maxServerMinutes) * 100));
+              return (
+                <div key={srv.serverIp} className="flex items-center gap-3">
+                  <span className="font-mono text-xs w-6 text-center text-muted">{idx + 1}</span>
+                  <span className="text-sm w-32 truncate text-text" title={srv.displayName || srv.serverIp}>
+                    {srv.displayName || srv.serverIp}
+                  </span>
+                  <div className="flex-1 h-2 rounded-full overflow-hidden bg-white/[0.06]">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${pct}%`,
+                        background: 'linear-gradient(90deg, #80FF97 0%, #6BB7FF 100%)',
+                      }}
+                    />
+                  </div>
+                  <span className="font-mono text-xs w-20 text-right text-muted">
+                    {formatPlaytime(srv.totalMinutes)}
+                  </span>
                 </div>
-                <span className="font-mono text-xs w-20 text-right text-muted">
-                  {formatPlaytime(srv.totalMinutes)}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <p className="font-mono text-xs text-muted">Нет данных</p>
+          )}
         </div>
       </div>
 
