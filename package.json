@@ -14,7 +14,8 @@
     "@tauri-apps/plugin-updater": "^2.10.1",
     "lucide-react": "^1.18.0",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "skinview3d": "^3.4.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

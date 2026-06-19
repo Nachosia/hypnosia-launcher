@@ -298,8 +298,8 @@ export default function AccountPage() {
         </div>
 
         {/* Detailed profile preview (Discord-linked only) */}
-        {account?.discordLinked && profileAccount && (
-          <ProfileSection account={profileAccount} />
+        {profileAccount && (
+          <ProfileSection account={profileAccount} onLinkDiscord={linkDiscord} />
         )}
 
         {/* Account info badges */}

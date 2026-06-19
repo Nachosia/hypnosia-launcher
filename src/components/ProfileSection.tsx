@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Upload, Shirt, Palette, Activity, Server, Clock, CalendarDays, User } from 'lucide-react';
+import { Upload, Shirt, Palette, Activity, Server, Clock, CalendarDays, User, Lock, Link2 } from 'lucide-react';
 import type { Account } from '../types/account';
+import SkinViewer3D from './SkinViewer3D';
 
 interface ProfileSectionProps {
   account: Account;
+  onLinkDiscord?: () => void;
 }
 
 const ROLE_CONFIG: Record<string, { label: string; color: string }> = {
@@ -47,9 +49,40 @@ function formatDate(iso?: string): string {
   }
 }
 
-export default function ProfileSection({ account }: ProfileSectionProps) {
+export default function ProfileSection({ account, onLinkDiscord }: ProfileSectionProps) {
+  if (!account.discordLinked) {
+    return (
+      <div className="glass-panel rounded-2xl p-8 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-border flex items-center justify-center mx-auto mb-4">
+          <Lock size={28} className="text-muted" />
+        </div>
+        <h3 className="font-bold text-xl text-text mb-2">Профиль недоступен</h3>
+        <p className="text-sm text-text-secondary max-w-md mx-auto mb-6">
+          Данные функции доступны только с привязкой аккаунта Discord либо полной регистрацией на сайте и привязкой аккаунта.
+        </p>
+        {onLinkDiscord && (
+          <button
+            onClick={onLinkDiscord}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all hover:scale-[1.02]"
+            style={{ background: 'linear-gradient(135deg, #5865F2, #4752C4)' }}
+          >
+            <Link2 size={16} />
+            Привязать Discord
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return <ProfileContent account={account} />;
+}
+
+function ProfileContent({ account }: { account: Account }) {
   const [skinModel, setSkinModel] = useState<'classic' | 'slim'>(account.skinModel || 'classic');
   const [skinPreview, setSkinPreview] = useState<string | null>(account.skinUrl || null);
+
+  const [nickFrom, setNickFrom] = useState(account.nickGradientFrom || '#80FF97');
+  const [nickTo, setNickTo] = useState(account.nickGradientTo || '#6BB7FF');
   const [roleFrom, setRoleFrom] = useState(account.roleGradientFrom || '#6BB7FF');
   const [roleTo, setRoleTo] = useState(account.roleGradientTo || '#FFD700');
   const [showGradientEditor, setShowGradientEditor] = useState(false);
@@ -58,7 +91,7 @@ export default function ProfileSection({ account }: ProfileSectionProps) {
   const rc = ROLE_CONFIG[displayRole] ?? ROLE_CONFIG.user;
   const allRoles = account.allRoles?.length ? account.allRoles : [displayRole];
 
-  const hasNickGradient = !!account.nickGradientFrom && !!account.nickGradientTo;
+  const hasNickGradient = !!nickFrom && !!nickTo;
   const hasRoleGradient = !!roleFrom && !!roleTo;
 
   const activity = useMemo(
@@ -97,33 +130,18 @@ export default function ProfileSection({ account }: ProfileSectionProps) {
       {/* Profile header */}
       <div className="glass-panel rounded-2xl p-6">
         <div className="flex flex-col md:flex-row items-start gap-6">
-          {/* Skin preview */}
+          {/* 3D Skin preview */}
           <div className="flex-shrink-0 w-full md:w-auto flex flex-col items-center gap-3">
             <div
-              className="flex items-center justify-center rounded-2xl"
+              className="flex items-center justify-center rounded-2xl overflow-hidden"
               style={{
-                width: 220,
-                height: 220,
+                width: 240,
+                height: 240,
                 background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(255,255,255,0.08)',
               }}
             >
-              {skinPreview ? (
-                <img
-                  src={skinPreview}
-                  alt="Skin"
-                  className="rounded-xl"
-                  style={{ width: 180, height: 180, imageRendering: 'pixelated' }}
-                />
-              ) : (
-                <div className="text-center">
-                  <div
-                    className="mx-auto mb-2 rounded-sm bg-gradient-to-br from-green/20 to-blue/20"
-                    style={{ width: 96, height: 96 }}
-                  />
-                  <p className="font-mono text-xs text-muted">Steve</p>
-                </div>
-              )}
+              <SkinViewer3D skinUrl={skinPreview} skinModel={skinModel} width={240} height={240} />
             </div>
 
             <div className="flex items-center gap-2 w-full">
@@ -186,7 +204,7 @@ export default function ProfileSection({ account }: ProfileSectionProps) {
                 style={{
                   fontSize: 'clamp(24px, 4vw, 36px)',
                   background: hasNickGradient
-                    ? `linear-gradient(135deg, ${account.nickGradientFrom}, ${account.nickGradientTo})`
+                    ? `linear-gradient(135deg, ${nickFrom}, ${nickTo})`
                     : undefined,
                   backgroundClip: hasNickGradient ? 'text' : undefined,
                   WebkitBackgroundClip: hasNickGradient ? 'text' : undefined,
@@ -339,12 +357,12 @@ export default function ProfileSection({ account }: ProfileSectionProps) {
         </div>
       </div>
 
-      {/* Role gradient editor */}
+      {/* Nick / Role gradient editor */}
       <div className="glass-panel rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Palette size={18} className="text-green" />
-            <h4 className="font-semibold text-text">Градиент роли</h4>
+            <h4 className="font-semibold text-text">Градиент ника/роли</h4>
           </div>
           <button
             onClick={() => setShowGradientEditor((v) => !v)}
@@ -354,15 +372,22 @@ export default function ProfileSection({ account }: ProfileSectionProps) {
           </button>
         </div>
 
-        {showGradientEditor && (
-          <div className="space-y-4">
-            <p className="text-xs text-text-secondary">Выберите пресет или настройте цвета вручную.</p>
+        {!showGradientEditor && (
+          <p className="text-xs text-text-secondary">
+            Здесь можно настроить градиент ника и градиент основной роли. Пока изменения сохраняются только локально.
+          </p>
+        )}
 
+        {showGradientEditor && (
+          <div className="space-y-6">
+            {/* Presets */}
             <div className="flex flex-wrap gap-2">
               {GRADIENT_PRESETS.map((p) => (
                 <button
                   key={p.label}
                   onClick={() => {
+                    setNickFrom(p.from);
+                    setNickTo(p.to);
                     setRoleFrom(p.from);
                     setRoleTo(p.to);
                   }}
@@ -374,7 +399,49 @@ export default function ProfileSection({ account }: ProfileSectionProps) {
               ))}
             </div>
 
+            {/* Nick gradient */}
             <div className="rounded-xl p-4 bg-bg-secondary/50 border border-green/10">
+              <p className="font-mono text-xs uppercase text-muted mb-3">Градиент ника</p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <input
+                  type="color"
+                  value={nickFrom}
+                  onChange={(e) => setNickFrom(e.target.value)}
+                  className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                />
+                <span className="font-mono text-xs text-text">{nickFrom}</span>
+                <span className="text-muted">→</span>
+                <input
+                  type="color"
+                  value={nickTo}
+                  onChange={(e) => setNickTo(e.target.value)}
+                  className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                />
+                <span className="font-mono text-xs text-text">{nickTo}</span>
+                <div
+                  className="ml-auto w-24 h-4 rounded-full"
+                  style={{ background: `linear-gradient(90deg, ${nickFrom}, ${nickTo})` }}
+                />
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-xs text-text-secondary">Превью:</span>
+                <span
+                  className="font-bold text-base"
+                  style={{
+                    background: `linear-gradient(135deg, ${nickFrom}, ${nickTo})`,
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  {account.displayName || account.username}
+                </span>
+              </div>
+            </div>
+
+            {/* Role gradient */}
+            <div className="rounded-xl p-4 bg-bg-secondary/50 border border-green/10">
+              <p className="font-mono text-xs uppercase text-muted mb-3">Градиент роли</p>
               <div className="flex items-center gap-3 flex-wrap">
                 <input
                   type="color"
@@ -396,25 +463,39 @@ export default function ProfileSection({ account }: ProfileSectionProps) {
                   style={{ background: `linear-gradient(90deg, ${roleFrom}, ${roleTo})` }}
                 />
               </div>
-
-              <button
-                onClick={() => {}}
-                className="w-full mt-4 py-2.5 rounded-xl font-mono text-xs transition-all hover:scale-[1.02] bg-green/10 text-green border border-green/20"
-              >
-                Сохранить градиент роли
-              </button>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-xs text-text-secondary">Превью:</span>
+                <span
+                  className="font-mono text-[10px] px-2.5 py-1 rounded-full"
+                  style={{
+                    background: `linear-gradient(90deg, ${roleFrom}, ${roleTo})`,
+                    color: '#fff',
+                  }}
+                >
+                  {rc.label}
+                </span>
+              </div>
             </div>
+
+            <button
+              onClick={() => {}}
+              className="w-full py-2.5 rounded-xl font-mono text-xs transition-all hover:scale-[1.02] bg-green/10 text-green border border-green/20"
+            >
+              Сохранить градиенты
+            </button>
           </div>
         )}
       </div>
 
-      {/* Skin style note */}
+      {/* Skin style */}
       <div className="glass-panel rounded-2xl p-6">
         <div className="flex items-center gap-2 mb-3">
           <Shirt size={18} className="text-green" />
           <h4 className="font-semibold text-text">Стиль скина</h4>
         </div>
-        <p className="text-xs text-text-secondary mb-3">Выбранная модель: <span className="text-green font-mono">{skinModel === 'classic' ? 'Стив (Classic)' : 'Алекс (Slim)'}</span></p>
+        <p className="text-xs text-text-secondary mb-3">
+          Выбранная модель: <span className="text-green font-mono">{skinModel === 'classic' ? 'Стив (Classic)' : 'Алекс (Slim)'}</span>
+        </p>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSkinModel('classic')}
