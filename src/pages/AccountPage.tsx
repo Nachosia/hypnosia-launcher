@@ -72,7 +72,6 @@ export default function AccountPage() {
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [installProgress, setInstallProgress] = useState<UpdateProgress | null>(null);
   const [installSuccess, setInstallSuccess] = useState(false);
-  const [refreshing, setRefreshing] = useState(true);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -87,14 +86,7 @@ export default function AccountPage() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    setRefreshing(true);
-    refresh().finally(() => {
-      if (mounted) setRefreshing(false);
-    });
-    return () => {
-      mounted = false;
-    };
+    refresh();
   }, [refresh]);
 
   const handleCheckUpdate = async () => {
@@ -163,7 +155,7 @@ export default function AccountPage() {
     );
   }
 
-  if (isLoading || refreshing) {
+  if (isLoading) {
     return <AccountSkeleton />;
   }
 
