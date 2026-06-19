@@ -1,11 +1,19 @@
-import { useState } from 'react';
-import { Gamepad2, User, Settings, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Gamepad2, User, Settings, Sparkles, Download, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+import { getVersion } from '@tauri-apps/api/app';
 import HomePage from './pages/HomePage';
 import AccountPage from './pages/AccountPage';
 import SettingsPage from './pages/SettingsPage';
+import { useUpdater } from './hooks/useUpdater';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'account' | 'settings'>('home');
+  const [version, setVersion] = useState<string>('0.1.0');
+  const { status, info, error, autoUpdate, setAutoUpdate, check, install } = useUpdater();
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => setVersion('0.1.0'));
+  }, []);
 
   const navItems: { id: 'home' | 'account' | 'settings'; label: string; icon: React.ReactNode }[] = [
     { id: 'home', label: 'Главная', icon: <Gamepad2 size={18} /> },
@@ -56,10 +64,58 @@ export default function App() {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-3">
           <div className="glass-panel rounded-xl p-3 glass-panel-hover transition-colors">
-            <p className="font-mono text-[10px] text-muted">Версия</p>
-            <p className="font-mono text-xs text-text">0.1.0-beta</p>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="font-mono text-[10px] text-muted">Версия</p>
+                <p className="font-mono text-xs text-text">{version}</p>
+              </div>
+              {status === 'available' ? (
+                <button
+                  onClick={install}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green/15 text-green border border-green/30 hover:bg-green/25 transition-colors text-xs font-medium"
+                >
+                  <Download size={14} />
+                  Обновить
+                </button>
+              ) : status === 'downloading' ? (
+                <button
+                  disabled
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.05] text-text-secondary border border-border transition-colors text-xs font-medium cursor-wait"
+                >
+                  <Loader2 size={14} className="animate-spin" />
+                  Загрузка
+                </button>
+              ) : status === 'ready' ? (
+                <button
+                  disabled
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green/15 text-green border border-green/30 transition-colors text-xs font-medium"
+                >
+                  <CheckCircle2 size={14} />
+                  Готово
+                </button>
+              ) : (
+                <button
+                  onClick={check}
+                  disabled={status === 'checking'}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.05] text-text-secondary border border-border hover:text-text hover:border-border-hover transition-colors text-xs font-medium disabled:opacity-60"
+                >
+                  <RefreshCw size={14} className={status === 'checking' ? 'animate-spin' : ''} />
+                  {status === 'checking' ? 'Проверка' : 'Проверить'}
+                </button>
+              )}
+            </div>
+            {info && status === 'available' && (
+              <p className="font-mono text-[10px] text-green mt-2 truncate" title={info.body}>
+                Доступно: {info.version}
+              </p>
+            )}
+            {error && (
+              <p className="font-mono text-[10px] text-red-400 mt-2 truncate" title={error}>
+                {error}
+              </p>
+            )}
           </div>
         </div>
       </aside>
@@ -68,7 +124,7 @@ export default function App() {
       <main className="relative z-10 flex-1 h-full overflow-hidden">
         {activeTab === 'home' && <HomePage />}
         {activeTab === 'account' && <AccountPage />}
-        {activeTab === 'settings' && <SettingsPage />}
+        {activeTab === 'settings' && <SettingsPage autoUpdate={autoUpdate} setAutoUpdate={setAutoUpdate} />}
       </main>
     </div>
   );

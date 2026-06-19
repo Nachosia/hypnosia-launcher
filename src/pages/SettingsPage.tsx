@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { FolderOpen, Monitor, Terminal, Info, Save } from 'lucide-react';
 
-export default function SettingsPage() {
+export default function SettingsPage({
+  autoUpdate,
+  setAutoUpdate,
+}: {
+  autoUpdate: boolean;
+  setAutoUpdate: (value: boolean) => void;
+}) {
   const [javaPath, setJavaPath] = useState('Авто');
   const [closeOnLaunch, setCloseOnLaunch] = useState(false);
   const [showConsole, setShowConsole] = useState(false);
-  const [autoUpdate, setAutoUpdate] = useState(true);
 
   const Toggle = ({
     checked,
