@@ -87,7 +87,9 @@ function mapServerAccount(data: {
   playtimeFrozen?: boolean;
   configsUploaded?: number;
 }): Account {
-  const accountId = data.accountId ?? data.minecraft.accountId ?? 0;
+  // Use the license account id from the Minecraft/mod account section.
+  // The top-level accountId is sometimes a different internal id.
+  const accountId = data.minecraft.accountId ?? data.accountId ?? 0;
   const resolvedSkinUrl = resolveSkinUrl(data.skinUrl);
   const resolvedSkinModel = data.skinModel ?? undefined;
 
