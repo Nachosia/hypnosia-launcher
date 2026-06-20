@@ -1,5 +1,10 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { Account, ProfileActivity, ProfileServerStats } from '../types/account';
+import type {
+  Account,
+  ProfileActivity,
+  ProfileServerStats,
+  TopServer,
+} from '../types/account';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://nachosia.site';
 
@@ -83,24 +88,8 @@ function mapServerAccount(data: {
   configsUploaded?: number;
 }): Account {
   const accountId = data.accountId ?? data.minecraft.accountId ?? 0;
-  const resolvedSkinUrl = data.skinUrl
-    ? data.skinUrl.startsWith('http')
-      ? data.skinUrl
-      : `${API_BASE}${data.skinUrl}`
-    : undefined;
+  const resolvedSkinUrl = resolveSkinUrl(data.skinUrl);
   const resolvedSkinModel = data.skinModel ?? undefined;
-
-  const parseMinutes = (v?: number | string): number | undefined => {
-    if (v === undefined || v === null) return undefined;
-    const n = typeof v === 'string' ? Number(v) : v;
-    return Number.isFinite(n) && n > 0 ? n : undefined;
-  };
-
-  const parseBoolString = (v?: boolean | string): boolean => {
-    if (typeof v === 'boolean') return v;
-    if (typeof v === 'string') return v === 'true';
-    return false;
-  };
 
   return {
     id: data.user.discordId || String(accountId || 'hwid'),
@@ -155,6 +144,92 @@ export async function fetchProfileServerStats(hwid: string): Promise<ProfileServ
   }
 }
 
+const parseBoolString = (v?: boolean | string): boolean => {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string') return v === 'true';
+  return false;
+};
+
+const parseMinutes = (v?: number | string): number | undefined => {
+  if (v === undefined || v === null) return undefined;
+  const n = typeof v === 'string' ? Number(v) : v;
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined;
+};
+
+const resolveSkinUrl = (skinUrl?: string | null): string | undefined => {
+  if (!skinUrl) return undefined;
+  return skinUrl.startsWith('http') ? skinUrl : `${API_BASE}${skinUrl}`;
+};
+
+export async function fetchSiteProfile(accountId: number): Promise<Partial<Account> | null> {
+  try {
+    const data = (await invoke<Record<string, unknown>>('fetch_site_profile', { accountId })) ?? {};
+    console.log('[API] site profile:', data.accountId, data.displayName);
+    return {
+      displayName: typeof data.displayName === 'string' ? data.displayName : undefined,
+      role: typeof data.effectiveRole === 'string' ? data.effectiveRole : undefined,
+      allRoles: Array.isArray(data.allRoles) ? (data.allRoles as string[]) : undefined,
+      customRoleName: typeof data.customRoleName === 'string' ? data.customRoleName : undefined,
+      skinUrl: resolveSkinUrl(data.skinUrl as string | null | undefined),
+      skinModel: data.skinModel === 'slim' ? 'slim' : 'classic',
+      totalMinutes: parseMinutes(data.totalMinutes as number | string | undefined),
+      weeklyMinutes: parseMinutes(data.weeklyMinutes as number | string | undefined),
+      hoursPlayed: typeof data.hoursPlayed === 'number' ? data.hoursPlayed : undefined,
+      mcJoined: (data.mcJoined as string | null | undefined) ?? undefined,
+      siteJoined: (data.siteJoined as string | null | undefined) ?? undefined,
+      isOnline: parseBoolString(data.isOnline as string | boolean | undefined),
+      showHours: parseBoolString(data.showHours as string | boolean | undefined),
+      showMcJoined: parseBoolString(data.showMcJoined as string | boolean | undefined),
+      showOnline: parseBoolString(data.showOnline as string | boolean | undefined),
+      showRank: parseBoolString(data.showRank as string | boolean | undefined),
+      nickGradientFrom: (data.nickGradientFrom as string | undefined) ?? undefined,
+      nickGradientTo: (data.nickGradientTo as string | undefined) ?? undefined,
+      roleGradientFrom: (data.roleGradientFrom as string | undefined) ?? undefined,
+      roleGradientTo: (data.roleGradientTo as string | undefined) ?? undefined,
+    };
+  } catch (error) {
+    console.error('[API] Failed to fetch site profile:', error);
+    return null;
+  }
+}
+
+export async function fetchSiteActivity(discordId: string): Promise<ProfileActivity[] | null> {
+  try {
+    const data = (await invoke<unknown[]>('fetch_site_activity', { discordId })) ?? [];
+    return data
+      .filter((d): d is Record<string, unknown> => typeof d === 'object' && d !== null)
+      .map((d) => ({
+        date: String(d.date ?? ''),
+        dayName: String(d.dayName ?? ''),
+        hours: typeof d.hours === 'number' ? d.hours : Number(d.hours) || 0,
+      }));
+  } catch (error) {
+    console.error('[API] Failed to fetch site activity:', error);
+    return null;
+  }
+}
+
+export async function fetchSiteServerStats(accountId: number): Promise<ProfileServerStats | null> {
+  try {
+    const data = (await invoke<Record<string, unknown>>('fetch_site_server_stats', { accountId })) ?? {};
+    const rawTopServers = Array.isArray(data.topServers) ? data.topServers : [];
+    const topServers: TopServer[] = rawTopServers
+      .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
+      .map((s) => ({
+        serverIp: String(s.serverIp ?? ''),
+        displayName: typeof s.displayName === 'string' ? s.displayName : undefined,
+        totalMinutes: typeof s.totalMinutes === 'number' ? s.totalMinutes : Number(s.totalMinutes) || 0,
+      }));
+    return {
+      playtimeBanned: data.playtimeBanned === true,
+      topServers,
+    };
+  } catch (error) {
+    console.error('[API] Failed to fetch site server stats:', error);
+    return null;
+  }
+}
+
 export async function fetchAccountByHwid(hwid: string): Promise<Account | null> {
   try {
     const url = `${API_BASE}/api/launcher/me?hwid=${encodeURIComponent(hwid)}`;
@@ -173,17 +248,25 @@ export async function fetchAccountByHwid(hwid: string): Promise<Account | null> 
 
     const account = mapServerAccount(data);
 
-    // Load activity and server stats in parallel
-    const [activity, serverStats] = await Promise.all([
-      fetchProfileActivity(hwid),
-      fetchProfileServerStats(hwid),
-    ]);
+    // Load full profile data directly from the site's public tRPC endpoints.
+    // This bypasses the launcher backend until it is extended.
+    if (account.accountId) {
+      const [siteProfile, siteServerStats] = await Promise.all([
+        fetchSiteProfile(account.accountId),
+        fetchSiteServerStats(account.accountId),
+      ]);
 
-    if (activity) account.activity = activity;
-    if (serverStats) {
-      account.topServers = serverStats.topServers;
-      if (serverStats.playtimeBanned !== undefined) {
-        account.playtimeBanned = serverStats.playtimeBanned;
+      if (siteProfile) {
+        Object.assign(account, siteProfile);
+      }
+      if (siteServerStats) {
+        account.topServers = siteServerStats.topServers;
+        account.playtimeBanned = siteServerStats.playtimeBanned;
+      }
+
+      if (account.id && account.id.length > 0 && account.id !== String(account.accountId)) {
+        const activity = await fetchSiteActivity(account.id);
+        if (activity) account.activity = activity;
       }
     }
 

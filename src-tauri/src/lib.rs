@@ -92,6 +92,51 @@ async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, Strin
     }
 }
 
+const SITE_TRPC_BASE: &str = "https://nachosia.site/api/trpc";
+
+async fn site_trpc_query(procedure: &str, input: serde_json::Value) -> Result<serde_json::Value, String> {
+    let input_json = serde_json::json!({ "json": input });
+    let encoded = urlencoding::encode(&input_json.to_string());
+    let url = format!("{}/{}?input={}", SITE_TRPC_BASE, procedure, encoded);
+
+    log::info!("site_trpc_query: {}", url);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(&url)
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let body = resp.text().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("Site {} returned {}: {}", procedure, status, body));
+    }
+    let json: serde_json::Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
+    Ok(json["result"]["data"]["json"].clone())
+}
+
+#[tauri::command]
+async fn fetch_site_profile(account_id: i64) -> Result<serde_json::Value, String> {
+    log::info!("fetch_site_profile: {}", account_id);
+    site_trpc_query("profile.getById", serde_json::json!({ "id": account_id.to_string() })).await
+}
+
+#[tauri::command]
+async fn fetch_site_activity(discord_id: String) -> Result<serde_json::Value, String> {
+    log::info!("fetch_site_activity: {}", discord_id);
+    site_trpc_query("profile.activity", serde_json::json!({ "discordId": discord_id })).await
+}
+
+#[tauri::command]
+async fn fetch_site_server_stats(account_id: i64) -> Result<serde_json::Value, String> {
+    log::info!("fetch_site_server_stats: {}", account_id);
+    site_trpc_query("profile.serverStats", serde_json::json!({ "accountId": account_id })).await
+}
+
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     log::info!("install_update invoked");
@@ -164,7 +209,10 @@ pub fn run() {
             launch_minecraft,
             open_discord_auth,
             check_update,
-            install_update
+            install_update,
+            fetch_site_profile,
+            fetch_site_activity,
+            fetch_site_server_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
