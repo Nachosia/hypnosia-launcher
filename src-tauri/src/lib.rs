@@ -96,7 +96,8 @@ const SITE_TRPC_BASE: &str = "https://nachosia.site/api/trpc";
 
 async fn site_trpc_query(procedure: &str, input: serde_json::Value) -> Result<serde_json::Value, String> {
     let input_json = serde_json::json!({ "json": input });
-    let encoded = urlencoding::encode(&input_json.to_string());
+    let input_string = input_json.to_string();
+    let encoded = urlencoding::encode(&input_string);
     let url = format!("{}/{}?input={}", SITE_TRPC_BASE, procedure, encoded);
 
     log::info!("site_trpc_query: {}", url);
@@ -135,6 +136,28 @@ async fn fetch_site_activity(discord_id: String) -> Result<serde_json::Value, St
 async fn fetch_site_server_stats(account_id: i64) -> Result<serde_json::Value, String> {
     log::info!("fetch_site_server_stats: {}", account_id);
     site_trpc_query("profile.serverStats", serde_json::json!({ "accountId": account_id })).await
+}
+
+#[tauri::command]
+async fn fetch_image_as_base64(url: String) -> Result<String, String> {
+    log::info!("fetch_image_as_base64: {}", url);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(&url)
+        .header("Accept", "image/png,image/*,*/*")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(format!("Image fetch failed: {}", status));
+    }
+    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:image/png;base64,{}", b64))
 }
 
 #[tauri::command]
@@ -213,6 +236,7 @@ pub fn run() {
             fetch_site_profile,
             fetch_site_activity,
             fetch_site_server_stats,
+            fetch_image_as_base64,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.11"
+version = "0.1.12"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -31,6 +31,8 @@ dotenvy = "0.15"
 reqwest = { version = "0.13.3", features = ["json"] }
 dirs = "6.0.0"
 url = "2.5.8"
+urlencoding = "2.1"
+base64 = "0.22"
 tokio = { version = "1.52.3", features = ["full"] }
 minecraft-java-rs-core = { git = "https://github.com/fitzxel/minecraft-java-rs-core", version = "0.2.1" }
 
