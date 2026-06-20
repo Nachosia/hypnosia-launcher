@@ -261,7 +261,26 @@ export async function fetchAccountByHwid(hwid: string): Promise<Account | null> 
       ]);
 
       if (siteProfile) {
-        Object.assign(account, siteProfile);
+        if (siteProfile.displayName) account.displayName = siteProfile.displayName;
+        if (siteProfile.role) account.role = siteProfile.role;
+        if (siteProfile.allRoles?.length) account.allRoles = siteProfile.allRoles;
+        if (siteProfile.customRoleName) account.customRoleName = siteProfile.customRoleName;
+        if (siteProfile.skinUrl) account.skinUrl = siteProfile.skinUrl;
+        if (siteProfile.skinModel) account.skinModel = siteProfile.skinModel;
+        if (siteProfile.totalMinutes !== undefined) account.totalMinutes = siteProfile.totalMinutes;
+        if (siteProfile.weeklyMinutes !== undefined) account.weeklyMinutes = siteProfile.weeklyMinutes;
+        if (siteProfile.hoursPlayed !== undefined) account.hoursPlayed = siteProfile.hoursPlayed;
+        if (siteProfile.mcJoined !== undefined) account.mcJoined = siteProfile.mcJoined;
+        if (siteProfile.siteJoined !== undefined) account.siteJoined = siteProfile.siteJoined;
+        if (siteProfile.isOnline !== undefined) account.isOnline = siteProfile.isOnline;
+        if (siteProfile.showHours !== undefined) account.showHours = siteProfile.showHours;
+        if (siteProfile.showMcJoined !== undefined) account.showMcJoined = siteProfile.showMcJoined;
+        if (siteProfile.showOnline !== undefined) account.showOnline = siteProfile.showOnline;
+        if (siteProfile.showRank !== undefined) account.showRank = siteProfile.showRank;
+        if (siteProfile.nickGradientFrom) account.nickGradientFrom = siteProfile.nickGradientFrom;
+        if (siteProfile.nickGradientTo) account.nickGradientTo = siteProfile.nickGradientTo;
+        if (siteProfile.roleGradientFrom) account.roleGradientFrom = siteProfile.roleGradientFrom;
+        if (siteProfile.roleGradientTo) account.roleGradientTo = siteProfile.roleGradientTo;
       }
       if (siteServerStats) {
         account.topServers = siteServerStats.topServers;

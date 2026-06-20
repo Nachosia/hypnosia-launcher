@@ -237,13 +237,6 @@ function ProfileContent({ account }: { account: Account }) {
               <span className="font-mono text-[10px] text-muted">ID: {account.accountId}</span>
             </div>
 
-            {/* Debug info - temporary */}
-            <div className="mb-3 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-              <p className="font-mono text-[9px] text-yellow-500">
-                DEBUG total={JSON.stringify(account.totalMinutes)} weekly={JSON.stringify(account.weeklyMinutes)} showHours={JSON.stringify(account.showHours)} hours={JSON.stringify(account.hoursPlayed)}
-              </p>
-            </div>
-
             {/* Quick stats */}
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl p-3 bg-bg-secondary/50 border border-green/10">
