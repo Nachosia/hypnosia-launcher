@@ -383,28 +383,25 @@ function ProfileContent({ account }: { account: Account }) {
 
         {showGradientEditor && (
           <div className="space-y-6">
-            {/* Presets */}
-            <div className="flex flex-wrap gap-2">
-              {GRADIENT_PRESETS.map((p) => (
-                <button
-                  key={p.label}
-                  onClick={() => {
-                    setNickFrom(p.from);
-                    setNickTo(p.to);
-                    setRoleFrom(p.from);
-                    setRoleTo(p.to);
-                  }}
-                  className="flex items-center gap-1.5 font-mono text-[10px] px-2.5 py-1.5 rounded-lg transition-all hover:scale-105 bg-white/[0.03] border border-border text-text-secondary"
-                >
-                  <div className="w-6 h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${p.from}, ${p.to})` }} />
-                  {p.label}
-                </button>
-              ))}
-            </div>
-
             {/* Nick gradient */}
             <div className="rounded-xl p-4 bg-bg-secondary/50 border border-green/10">
-              <p className="font-mono text-xs uppercase text-muted mb-3">Градиент ника</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-mono text-xs uppercase text-muted">Градиент ника</p>
+                <div className="flex flex-wrap gap-1.5 justify-end">
+                  {GRADIENT_PRESETS.map((p) => (
+                    <button
+                      key={`nick-${p.label}`}
+                      title={p.label}
+                      onClick={() => {
+                        setNickFrom(p.from);
+                        setNickTo(p.to);
+                      }}
+                      className="w-6 h-6 rounded-full border border-white/10 transition-all hover:scale-110"
+                      style={{ background: `linear-gradient(135deg, ${p.from}, ${p.to})` }}
+                    />
+                  ))}
+                </div>
+              </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <input
                   type="color"
@@ -444,7 +441,23 @@ function ProfileContent({ account }: { account: Account }) {
 
             {/* Role gradient */}
             <div className="rounded-xl p-4 bg-bg-secondary/50 border border-green/10">
-              <p className="font-mono text-xs uppercase text-muted mb-3">Градиент роли</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-mono text-xs uppercase text-muted">Градиент роли</p>
+                <div className="flex flex-wrap gap-1.5 justify-end">
+                  {GRADIENT_PRESETS.map((p) => (
+                    <button
+                      key={`role-${p.label}`}
+                      title={p.label}
+                      onClick={() => {
+                        setRoleFrom(p.from);
+                        setRoleTo(p.to);
+                      }}
+                      className="w-6 h-6 rounded-full border border-white/10 transition-all hover:scale-110"
+                      style={{ background: `linear-gradient(135deg, ${p.from}, ${p.to})` }}
+                    />
+                  ))}
+                </div>
+              </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <input
                   type="color"
