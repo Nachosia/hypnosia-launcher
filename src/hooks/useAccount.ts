@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Account, AuthState } from '../types/account';
 import { getHardwareId, fetchAccountByHwid, loginWithDiscord, loginWithHwid, linkMinecraftAccount, linkDiscordAccount } from '../lib/api';
 
@@ -12,50 +12,65 @@ export function useAccount() {
     error: null,
   });
 
+  const loadPromiseRef = useRef<Promise<void> | null>(null);
+
   const loadAccount = useCallback(async () => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    // Prevent concurrent loadAccount calls from racing each other.
+    if (loadPromiseRef.current) {
+      return loadPromiseRef.current;
+    }
 
-    try {
-      const hwid = await getHardwareId();
-      // Always verify with server; localStorage is only a fallback if server is unreachable
-      let account: Account | null = await fetchAccountByHwid(hwid);
+    loadPromiseRef.current = (async () => {
+      setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      if (!account) {
-        // Try to recover from localStorage when offline
-        const cached = localStorage.getItem(STORAGE_KEY);
-        if (cached) {
-          try {
-            account = JSON.parse(cached);
-          } catch {
-            localStorage.removeItem(STORAGE_KEY);
+      try {
+        const hwid = await getHardwareId();
+        // Always verify with server; localStorage is only a fallback if server is unreachable
+        let account: Account | null = await fetchAccountByHwid(hwid);
+
+        if (!account) {
+          // Try to recover from localStorage when offline
+          const cached = localStorage.getItem(STORAGE_KEY);
+          if (cached) {
+            try {
+              account = JSON.parse(cached);
+            } catch {
+              localStorage.removeItem(STORAGE_KEY);
+            }
           }
         }
-      }
 
-      if (account) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
-        setState({
-          account,
-          isLoading: false,
-          isAuthenticated: true,
-          error: null,
-        });
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
+        if (account) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
+          setState({
+            account,
+            isLoading: false,
+            isAuthenticated: true,
+            error: null,
+          });
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+          setState({
+            account: null,
+            isLoading: false,
+            isAuthenticated: false,
+            error: null,
+          });
+        }
+      } catch (error) {
         setState({
           account: null,
           isLoading: false,
           isAuthenticated: false,
-          error: null,
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
-    } catch (error) {
-      setState({
-        account: null,
-        isLoading: false,
-        isAuthenticated: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+    })();
+
+    try {
+      await loadPromiseRef.current;
+    } finally {
+      loadPromiseRef.current = null;
     }
   }, []);
 

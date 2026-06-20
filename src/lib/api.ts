@@ -8,13 +8,19 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://nachosia.site';
 
+let cachedHwid: string | null = null;
+
 // Get stable hardware ID from Tauri (OS info based hash)
 export async function getHardwareId(): Promise<string> {
   const STORAGE_KEY = 'hypnosia_hwid';
+  if (cachedHwid) {
+    return cachedHwid;
+  }
   try {
     const hwid = await invoke<string>('get_hwid');
     // Persist successful HWID so later calls use the same value even if invoke fails
     localStorage.setItem(STORAGE_KEY, hwid);
+    cachedHwid = hwid;
     console.log('[HWID] using native:', hwid.slice(0, 16));
     return hwid;
   } catch (err) {
@@ -31,6 +37,7 @@ export async function getHardwareId(): Promise<string> {
     } else {
       console.warn('[HWID] using persisted fallback:', hwid.slice(0, 16), err);
     }
+    cachedHwid = hwid;
     return hwid;
   }
 }
@@ -314,8 +321,13 @@ export async function loginWithHwid(hwid: string): Promise<Account> {
     throw new Error(data.error || `Server error: ${response.status}`);
   }
 
-  const data = await response.json();
-  return mapServerAccount(data);
+  // Return the fully merged account (site profile + activity + server stats)
+  // instead of the bare /login-hwid response.
+  const account = await fetchAccountByHwid(hwid);
+  if (!account) {
+    throw new Error('Login succeeded but failed to fetch account details');
+  }
+  return account;
 }
 
 export async function loginWithDiscord(): Promise<Account> {
