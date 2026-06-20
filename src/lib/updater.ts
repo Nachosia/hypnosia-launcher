@@ -4,6 +4,12 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 export interface UpdateInfo {
   version: string;
   body?: string;
+  downloadUrl: string;
+}
+
+export interface InstallResult {
+  installed: boolean;
+  manualDownloadUrl?: string;
 }
 
 export interface UpdateProgress {
@@ -16,8 +22,8 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
   return await invoke<UpdateInfo | null>('check_update');
 }
 
-export async function installUpdate(): Promise<void> {
-  return await invoke<void>('install_update');
+export async function installUpdate(): Promise<InstallResult> {
+  return await invoke<InstallResult>('install_update');
 }
 
 export function onUpdaterProgress(callback: (progress: UpdateProgress) => void): Promise<UnlistenFn> {

@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
 use sha2::{Digest, Sha256};
 use tauri::Emitter;
+use tauri::async_runtime::Mutex;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::ShellExt;
-use tauri_plugin_updater::UpdaterExt;
+use tauri_plugin_updater::{UpdaterExt, Update};
 
 mod minecraft;
 
@@ -66,7 +67,12 @@ async fn open_discord_auth(app: tauri::AppHandle, url: String) -> Result<(), Str
 struct UpdateInfo {
     version: String,
     body: Option<String>,
+    download_url: String,
 }
+
+// Cached update so install_update can reuse the exact release discovered by
+// check_update instead of re-fetching latest.json (which GitHub may cache).
+static LAST_UPDATE: Mutex<Option<Update>> = Mutex::const_new(None);
 
 #[tauri::command]
 async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
@@ -80,13 +86,17 @@ async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, Strin
         e.to_string()
     })? {
         Some(update) => {
-            log::info!("update available: {}", update.version);
-            Ok(Some(UpdateInfo {
-                version: update.version,
-                body: update.body,
-            }))
+            log::info!("update available: {} from {}", update.version, update.download_url);
+            let info = UpdateInfo {
+                version: update.version.clone(),
+                body: update.body.clone(),
+                download_url: update.download_url.to_string(),
+            };
+            *LAST_UPDATE.lock().await = Some(update);
+            Ok(Some(info))
         }
         None => {
+            *LAST_UPDATE.lock().await = None;
             log::info!("no update available");
             Ok(None)
         }
@@ -161,26 +171,47 @@ async fn fetch_image_as_base64(url: String) -> Result<String, String> {
     Ok(format!("data:image/png;base64,{}", b64))
 }
 
-#[tauri::command]
-async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
-    log::info!("install_update invoked");
-    let updater = app.updater().map_err(|e| {
-        log::error!("updater init failed: {}", e);
-        e.to_string()
-    })?;
-    let update = updater
-        .check()
-        .await
-        .map_err(|e| {
-            log::error!("updater check failed: {}", e);
-            e.to_string()
-        })?
-        .ok_or("No update available")?;
+#[derive(serde::Serialize)]
+struct InstallUpdateResponse {
+    installed: bool,
+    manual_download_url: Option<String>,
+}
 
-    log::info!("downloading update {} from {:?}", update.version, update.download_url);
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<InstallUpdateResponse, String> {
+    log::info!("install_update invoked");
+
+    // Prefer the update discovered by the last check_update call.
+    let mut last = LAST_UPDATE.lock().await;
+    let update = if let Some(update) = last.take() {
+        log::info!("reusing update {} from last check", update.version);
+        update
+    } else {
+        log::info!("no cached update, checking again");
+        let updater = app.updater().map_err(|e| {
+            log::error!("updater init failed: {}", e);
+            e.to_string()
+        })?;
+        updater
+            .check()
+            .await
+            .map_err(|e| {
+                log::error!("updater check failed: {}", e);
+                e.to_string()
+            })?
+            .ok_or("No update available")?
+    };
+    drop(last);
+
+    let manual_download_url = update.download_url.to_string();
+    log::info!(
+        "downloading update {} from {}",
+        update.version,
+        manual_download_url
+    );
     let app_handle = app.clone();
     let app_handle2 = app.clone();
-    update
+    match update
         .download_and_install(
             move |chunk_length, content_length| {
                 log::debug!("download progress {}/{:?}", chunk_length, content_length);
@@ -198,12 +229,23 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
             },
         )
         .await
-        .map_err(|e| {
+    {
+        Ok(()) => {
+            log::info!("update installed successfully");
+            Ok(InstallUpdateResponse {
+                installed: true,
+                manual_download_url: None,
+            })
+        }
+        Err(e) => {
             log::error!("download_and_install failed: {}", e);
-            e.to_string()
-        })?;
-
-    Ok(())
+            // Return a structured response so the UI can offer a manual download.
+            Ok(InstallUpdateResponse {
+                installed: false,
+                manual_download_url: Some(manual_download_url),
+            })
+        }
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -80,8 +80,7 @@ export default function AccountPage() {
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [installProgress, setInstallProgress] = useState<UpdateProgress | null>(null);
   const [installSuccess, setInstallSuccess] = useState(false);
-
-
+  const [manualDownloadUrl, setManualDownloadUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -113,9 +112,17 @@ export default function AccountPage() {
     setInstallingUpdate(true);
     setUpdateError(null);
     setInstallSuccess(false);
+    setManualDownloadUrl(null);
     try {
-      await installUpdate();
-      setInstallSuccess(true);
+      const result = await installUpdate();
+      if (result.installed) {
+        setInstallSuccess(true);
+      } else if (result.manualDownloadUrl) {
+        setManualDownloadUrl(result.manualDownloadUrl);
+        setUpdateError('Автоматическая установка не удалась. Скачайте установщик вручную.');
+      } else {
+        setUpdateError('Не удалось установить обновление');
+      }
     } catch (error) {
       setUpdateError(error instanceof Error ? error.message : 'Не удалось установить обновление');
     } finally {
@@ -471,10 +478,24 @@ export default function AccountPage() {
           )}
 
           {updateError && (
-            <p className="text-sm text-red-400 flex items-center gap-2 mt-3">
-              <AlertCircle size={14} />
-              {updateError}
-            </p>
+            <div className="mt-3 space-y-2">
+              <p className="text-sm text-red-400 flex items-center gap-2">
+                <AlertCircle size={14} />
+                {updateError}
+              </p>
+              {manualDownloadUrl && (
+                <a
+                  href={manualDownloadUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm text-bg transition-all hover:scale-[1.02]"
+                  style={{ background: 'linear-gradient(135deg, #6BB7FF, #80FF97)' }}
+                >
+                  <Download size={16} />
+                  Скачать установщик
+                </a>
+              )}
+            </div>
           )}
         </div>
 
