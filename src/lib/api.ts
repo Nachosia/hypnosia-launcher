@@ -166,6 +166,7 @@ export async function fetchSiteProfile(accountId: number): Promise<Partial<Accou
     const data = (await invoke<Record<string, unknown>>('fetch_site_profile', { accountId })) ?? {};
     console.log('[API] site profile:', data.accountId, data.displayName);
     return {
+      discordId: typeof data.discordId === 'string' ? data.discordId : undefined,
       displayName: typeof data.displayName === 'string' ? data.displayName : undefined,
       role: typeof data.effectiveRole === 'string' ? data.effectiveRole : undefined,
       allRoles: Array.isArray(data.allRoles) ? (data.allRoles as string[]) : undefined,
@@ -196,6 +197,7 @@ export async function fetchSiteProfile(accountId: number): Promise<Partial<Accou
 export async function fetchSiteActivity(discordId: string): Promise<ProfileActivity[] | null> {
   try {
     const data = (await invoke<unknown[]>('fetch_site_activity', { discordId })) ?? [];
+    console.log('[API] site activity:', discordId, data);
     return data
       .filter((d): d is Record<string, unknown> => typeof d === 'object' && d !== null)
       .map((d) => ({
@@ -264,12 +266,14 @@ export async function fetchAccountByHwid(hwid: string): Promise<Account | null> 
         account.playtimeBanned = siteServerStats.playtimeBanned;
       }
 
-      if (account.id && account.id.length > 0 && account.id !== String(account.accountId)) {
-        const activity = await fetchSiteActivity(account.id);
+      const discordId = account.discordId || account.id;
+      if (discordId && discordId.length > 0 && discordId !== String(account.accountId)) {
+        const activity = await fetchSiteActivity(discordId);
         if (activity) account.activity = activity;
       }
     }
 
+    console.log('[API] final account:', account);
     return account;
   } catch (error) {
     console.error('[API] Failed to fetch account by HWID:', error);

@@ -1,3 +1,4 @@
+use base64::Engine;
 use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
 use sha2::{Digest, Sha256};

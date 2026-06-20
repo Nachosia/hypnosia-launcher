@@ -17,6 +17,7 @@ export interface ProfileServerStats {
 
 export interface Account {
   id: string;
+  discordId?: string;
   username: string;
   displayName?: string;
   avatar?: string;
