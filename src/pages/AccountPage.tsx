@@ -68,7 +68,7 @@ function AccountSkeleton() {
 }
 
 export default function AccountPage() {
-  const { account, isLoading, isAuthenticated, login, loginHwid, logout, linkMinecraft, linkDiscord, refresh } = useAccount();
+  const { account, isLoading, isAuthenticated, login, loginHwid, logout, linkMinecraft, linkDiscord } = useAccount();
   const [linkCode, setLinkCode] = useState('');
   const [linking, setLinking] = useState(false);
   const [linkSuccess, setLinkSuccess] = useState(false);
@@ -94,10 +94,6 @@ export default function AccountPage() {
       if (unlisten) unlisten();
     };
   }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   const handleCheckUpdate = async () => {
     setCheckingUpdate(true);

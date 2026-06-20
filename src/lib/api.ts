@@ -241,11 +241,53 @@ export async function fetchSiteServerStats(accountId: number): Promise<ProfileSe
   }
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo,
+  init?: RequestInit,
+  timeoutMs = 15000
+): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(input, { ...init, signal: controller.signal });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function fetchWithRetry(
+  url: string,
+  options?: RequestInit,
+  retries = 3,
+  delayMs = 1000
+): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, options);
+      if (response.ok) return response;
+      // For server errors (5xx), retry; for client errors (4xx), fail fast.
+      if (response.status >= 400 && response.status < 500) {
+        return response;
+      }
+      lastError = new Error(`Server error: ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      console.warn(`[API] attempt ${attempt + 1}/${retries} failed for ${url}:`, error);
+    }
+    if (attempt < retries - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
 export async function fetchAccountByHwid(hwid: string): Promise<Account | null> {
   try {
     const url = `${API_BASE}/api/launcher/me?hwid=${encodeURIComponent(hwid)}`;
     console.log('[API] fetching:', url);
-    const response = await fetch(url);
+    const response = await fetchWithRetry(url, undefined, 3, 1500);
 
     if (!response.ok) {
       throw new Error(`Server error: ${response.status}`);

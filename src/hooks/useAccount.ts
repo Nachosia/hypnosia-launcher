@@ -1,26 +1,44 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Account, AuthState } from '../types/account';
 import { getHardwareId, fetchAccountByHwid, loginWithDiscord, loginWithHwid, linkMinecraftAccount, linkDiscordAccount } from '../lib/api';
 
 const STORAGE_KEY = 'hypnosia_account';
 
+// Shared across all useAccount instances so HomePage and AccountPage never
+// fire multiple /api/launcher/me requests at the same time.
+let globalLoadPromise: Promise<void> | null = null;
+
 export function useAccount() {
-  const [state, setState] = useState<AuthState>({
-    account: null,
-    isLoading: true,
-    isAuthenticated: false,
-    error: null,
+  const [state, setState] = useState<AuthState>(() => {
+    const cached = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+    if (cached) {
+      try {
+        const account = JSON.parse(cached) as Account;
+        return {
+          account,
+          isLoading: true,
+          isAuthenticated: true,
+          error: null,
+        };
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+    return {
+      account: null,
+      isLoading: true,
+      isAuthenticated: false,
+      error: null,
+    };
   });
 
-  const loadPromiseRef = useRef<Promise<void> | null>(null);
-
   const loadAccount = useCallback(async () => {
-    // Prevent concurrent loadAccount calls from racing each other.
-    if (loadPromiseRef.current) {
-      return loadPromiseRef.current;
+    // Prevent concurrent loadAccount calls across all useAccount instances.
+    if (globalLoadPromise) {
+      return globalLoadPromise;
     }
 
-    loadPromiseRef.current = (async () => {
+    globalLoadPromise = (async () => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
       try {
@@ -58,19 +76,21 @@ export function useAccount() {
           });
         }
       } catch (error) {
+        // On network errors, keep cached account visible if available.
+        const cached = localStorage.getItem(STORAGE_KEY);
         setState({
-          account: null,
+          account: cached ? JSON.parse(cached) : null,
           isLoading: false,
-          isAuthenticated: false,
+          isAuthenticated: !!cached,
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     })();
 
     try {
-      await loadPromiseRef.current;
+      await globalLoadPromise;
     } finally {
-      loadPromiseRef.current = null;
+      globalLoadPromise = null;
     }
   }, []);
 
