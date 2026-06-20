@@ -246,14 +246,14 @@ async function fetchWithTimeout(
   init?: RequestInit,
   timeoutMs = 15000
 ): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(input, { ...init, signal: controller.signal });
-    return response;
-  } finally {
-    clearTimeout(id);
-  }
+  // Use Promise.race instead of AbortController to avoid compatibility issues
+  // with some WebView2 versions that throw AbortError immediately.
+  return Promise.race([
+    fetch(input, init),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+    ),
+  ]);
 }
 
 async function fetchWithRetry(
