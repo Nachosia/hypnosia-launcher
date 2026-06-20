@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { User, Link2, LogOut, Shield, Gamepad2, Loader2, CheckCircle2, AlertCircle, BadgeCheck, Fingerprint, CalendarDays, RefreshCw, Download } from 'lucide-react';
 import { useAccount } from '../hooks/useAccount';
 import { checkForUpdate, installUpdate, onUpdaterProgress, type UpdateInfo, type UpdateProgress } from '../lib/updater';
@@ -10,49 +10,56 @@ function AccountSkeleton() {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-3 w-32 bg-muted/20 rounded animate-pulse" />
-            <div className="h-8 w-48 bg-text/10 rounded animate-pulse" />
+            <div className="h-3 w-32 bg-white/10 rounded animate-pulse blur-sm" />
+            <div className="h-8 w-48 bg-white/10 rounded animate-pulse blur-sm" />
           </div>
-          <div className="h-10 w-28 bg-text/10 rounded-xl animate-pulse" />
+          <div className="h-10 w-28 bg-white/10 rounded-xl animate-pulse blur-sm" />
         </div>
 
-        <div className="glass-panel rounded-2xl p-6 flex items-center gap-5">
-          <div className="w-20 h-20 rounded-2xl bg-text/10 animate-pulse" />
-          <div className="flex-1 space-y-3">
-            <div className="h-6 w-48 bg-text/10 rounded animate-pulse" />
-            <div className="h-4 w-32 bg-muted/20 rounded animate-pulse" />
+        <div className="glass-panel rounded-2xl p-6 flex flex-col md:flex-row items-start gap-6">
+          <div className="flex-shrink-0 w-full md:w-auto flex flex-col items-center gap-3">
+            <div className="w-[240px] h-[319px] rounded-2xl bg-white/10 animate-pulse blur-sm" />
+            <div className="flex items-center gap-2 w-full">
+              <div className="flex-1 h-8 rounded-xl bg-white/10 animate-pulse blur-sm" />
+              <div className="flex-1 h-8 rounded-xl bg-white/10 animate-pulse blur-sm" />
+            </div>
+            <div className="w-full h-9 rounded-xl bg-white/10 animate-pulse blur-sm" />
+          </div>
+
+          <div className="flex-1 min-w-0 w-full space-y-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="h-10 w-40 bg-white/10 rounded animate-pulse blur-sm" />
+              <div className="h-6 w-20 bg-white/10 rounded-full animate-pulse blur-sm" />
+            </div>
             <div className="flex gap-2">
-              <div className="h-5 w-20 bg-text/10 rounded-full animate-pulse" />
-              <div className="h-5 w-20 bg-text/10 rounded-full animate-pulse" />
+              <div className="h-6 w-16 bg-white/10 rounded-full animate-pulse blur-sm" />
+              <div className="h-6 w-24 bg-white/10 rounded-full animate-pulse blur-sm" />
+              <div className="h-6 w-20 bg-white/10 rounded-full animate-pulse blur-sm" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="rounded-xl p-3 bg-white/5 border border-white/5 space-y-2">
+                  <div className="h-3 w-20 bg-white/10 rounded animate-pulse blur-sm" />
+                  <div className="h-5 w-16 bg-white/10 rounded animate-pulse blur-sm" />
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="glass-panel rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-text/10 animate-pulse" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3 w-20 bg-muted/20 rounded animate-pulse" />
-                <div className="h-4 w-28 bg-text/10 rounded animate-pulse" />
-              </div>
-            </div>
-          ))}
         </div>
 
         {[...Array(3)].map((_, i) => (
           <div key={i} className="glass-panel rounded-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-text/10 animate-pulse" />
+                <div className="w-10 h-10 rounded-xl bg-white/10 animate-pulse blur-sm" />
                 <div className="space-y-2">
-                  <div className="h-5 w-32 bg-text/10 rounded animate-pulse" />
-                  <div className="h-3 w-48 bg-muted/20 rounded animate-pulse" />
+                  <div className="h-5 w-32 bg-white/10 rounded animate-pulse blur-sm" />
+                  <div className="h-3 w-48 bg-white/10 rounded animate-pulse blur-sm" />
                 </div>
               </div>
-              <div className="h-9 w-28 bg-text/10 rounded-xl animate-pulse" />
+              <div className="h-9 w-28 bg-white/10 rounded-xl animate-pulse blur-sm" />
             </div>
-            <div className="h-16 bg-text/5 rounded-xl animate-pulse" />
+            <div className="h-24 bg-white/5 rounded-xl animate-pulse blur-sm" />
           </div>
         ))}
       </div>
@@ -74,30 +81,7 @@ export default function AccountPage() {
   const [installProgress, setInstallProgress] = useState<UpdateProgress | null>(null);
   const [installSuccess, setInstallSuccess] = useState(false);
 
-  // Mock profile preview data merged with the real account
-  const profileAccount = useMemo(() => {
-    if (!account) return null;
-    return {
-      ...account,
-      nickGradientFrom: account.nickGradientFrom || '#80FF97',
-      nickGradientTo: account.nickGradientTo || '#6BB7FF',
-      roleGradientFrom: account.roleGradientFrom || '#6BB7FF',
-      roleGradientTo: account.roleGradientTo || '#FFD700',
-      hoursPlayed: 124,
-      weeklyMinutes: 720,
-      totalMinutes: 7440,
-      mcJoined: '2024-01-15',
-      siteJoined: account.registeredAt || '2024-01-15',
-      isOnline: false,
-      showHours: true,
-      showMcJoined: true,
-      showOnline: true,
-      showRank: true,
-      allRoles: [account.role],
-      customRoleName: undefined,
-      configsUploaded: 3,
-    };
-  }, [account]);
+
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -297,8 +281,8 @@ export default function AccountPage() {
         </div>
 
         {/* Detailed profile preview (Discord-linked only) */}
-        {profileAccount && (
-          <ProfileSection account={profileAccount} onLinkDiscord={linkDiscord} />
+        {account && (
+          <ProfileSection account={account} onLinkDiscord={linkDiscord} />
         )}
 
         {/* Account info badges */}
