@@ -1,25 +1,18 @@
 use base64::Engine;
 use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
-use sha2::{Digest, Sha256};
 use tauri::Emitter;
 use tauri::async_runtime::Mutex;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_updater::{UpdaterExt, Update};
 
+mod hardware_fingerprint;
 mod minecraft;
 
 #[tauri::command]
 async fn get_hwid() -> Result<String, String> {
-    let os = tauri_plugin_os::type_();
-    let arch = tauri_plugin_os::arch();
-    let hostname = tauri_plugin_os::hostname();
-    let version = tauri_plugin_os::version();
-
-    let raw = format!("{}|{:?}|{}|{:?}", os, arch, hostname, version);
-    let hash = format!("{:x}", Sha256::digest(raw.as_bytes()));
-    Ok(hash)
+    Ok(hardware_fingerprint::current_key32())
 }
 
 #[tauri::command]

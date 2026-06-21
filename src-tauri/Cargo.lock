@@ -86,7 +86,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "app"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -94,6 +94,7 @@ dependencies = [
  "dotenvy",
  "log",
  "minecraft-java-rs-core",
+ "rand 0.8.6",
  "reqwest 0.13.4",
  "serde",
  "serde_json",

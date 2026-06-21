@@ -10,9 +10,10 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://nachosia.site';
 
 let cachedHwid: string | null = null;
 
-// Get stable hardware ID from Tauri (OS info based hash)
+// Get stable hardware ID from Tauri (MachineGuid / machine-id / IOPlatformUUID hash)
 export async function getHardwareId(): Promise<string> {
-  const STORAGE_KEY = 'hypnosia_hwid';
+  // Key bumped to v2 so the old OS-info-based HWID cache is discarded.
+  const STORAGE_KEY = 'hypnosia_hwid_v2';
   if (cachedHwid) {
     return cachedHwid;
   }

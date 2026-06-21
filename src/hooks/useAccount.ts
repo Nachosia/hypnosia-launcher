@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Account, AuthState } from '../types/account';
 import { getHardwareId, fetchAccountByHwid, loginWithDiscord, loginWithHwid, linkMinecraftAccount, linkDiscordAccount } from '../lib/api';
 
-const STORAGE_KEY = 'hypnosia_account';
+const STORAGE_KEY = 'hypnosia_account_v2';
 
 // Shared across all useAccount instances so HomePage and AccountPage never
 // fire multiple /api/launcher/me requests at the same time.
