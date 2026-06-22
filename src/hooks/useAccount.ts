@@ -3,6 +3,7 @@ import type { Account, AuthState } from '../types/account';
 import { getHardwareId, fetchAccountByHwid, loginWithDiscord, loginWithHwid, recoverAccountByKey, linkMinecraftAccount, linkDiscordAccount } from '../lib/api';
 
 const STORAGE_KEY = 'hypnosia_account_v2';
+const MANUAL_LOGOUT_KEY = 'hypnosia_manual_logout';
 
 // Shared across all useAccount instances so HomePage and AccountPage never
 // fire multiple /api/launcher/me requests at the same time.
@@ -10,6 +11,19 @@ let globalLoadPromise: Promise<void> | null = null;
 
 export function useAccount() {
   const [state, setState] = useState<AuthState>(() => {
+    // If the user explicitly logged out, never restore the cached account on
+    // initial render — this avoids flashing the profile before useEffect runs.
+    const manuallyLoggedOut = typeof localStorage !== 'undefined' && localStorage.getItem(MANUAL_LOGOUT_KEY) === 'true';
+    if (manuallyLoggedOut) {
+      localStorage.removeItem(STORAGE_KEY);
+      return {
+        account: null,
+        isLoading: false,
+        isAuthenticated: false,
+        error: null,
+      };
+    }
+
     const cached = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
     if (cached) {
       try {
@@ -40,6 +54,19 @@ export function useAccount() {
 
     globalLoadPromise = (async () => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+      // If the user explicitly logged out, stay on the login screen until they
+      // press a login button again. Do not auto-restore the cached account.
+      if (localStorage.getItem(MANUAL_LOGOUT_KEY) === 'true') {
+        localStorage.removeItem(STORAGE_KEY);
+        setState({
+          account: null,
+          isLoading: false,
+          isAuthenticated: false,
+          error: null,
+        });
+        return;
+      }
 
       try {
         const hwid = await getHardwareId();
@@ -102,6 +129,7 @@ export function useAccount() {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     try {
       const account = await loginWithDiscord();
+      localStorage.removeItem(MANUAL_LOGOUT_KEY);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
       setState({
         account,
@@ -123,6 +151,7 @@ export function useAccount() {
     try {
       const hwid = await getHardwareId();
       const account = await loginWithHwid(hwid);
+      localStorage.removeItem(MANUAL_LOGOUT_KEY);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
       setState({
         account,
@@ -140,6 +169,7 @@ export function useAccount() {
   }, []);
 
   const logout = useCallback(() => {
+    localStorage.setItem(MANUAL_LOGOUT_KEY, 'true');
     localStorage.removeItem(STORAGE_KEY);
     setState({
       account: null,
@@ -153,6 +183,7 @@ export function useAccount() {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     try {
       const account = await recoverAccountByKey(accountKey);
+      localStorage.removeItem(MANUAL_LOGOUT_KEY);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
       setState({
         account,
