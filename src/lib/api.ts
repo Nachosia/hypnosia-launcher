@@ -444,7 +444,32 @@ export async function linkDiscordAccount(hwid: string): Promise<boolean> {
   } catch {
     window.open(authUrl, '_blank');
   }
-  return true;
+
+  // Poll server until the Discord account is linked to this HWID.
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    const maxAttempts = 240; // 6 minutes
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        console.log('[DiscordLink] polling attempt', attempts);
+        const account = await fetchAccountByHwid(hwid);
+        if (account?.discordLinked) {
+          console.log('[DiscordLink] linked:', account.username);
+          clearInterval(interval);
+          resolve(true);
+          return;
+        }
+      } catch (err) {
+        console.warn('[DiscordLink] polling error:', err);
+      }
+
+      if (attempts >= maxAttempts) {
+        clearInterval(interval);
+        reject(new Error('Timeout waiting for Discord link'));
+      }
+    }, 1500);
+  });
 }
 
 export interface LaunchInfo {

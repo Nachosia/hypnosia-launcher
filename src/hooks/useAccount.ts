@@ -162,12 +162,22 @@ export function useAccount() {
   );
 
   const linkDiscord = useCallback(async (): Promise<boolean> => {
-    const hwid = await getHardwareId();
-    const success = await linkDiscordAccount(hwid);
-    if (success) {
-      await loadAccount();
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    try {
+      const hwid = await getHardwareId();
+      const success = await linkDiscordAccount(hwid);
+      if (success) {
+        await loadAccount();
+      }
+      return success;
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Discord link failed',
+      }));
+      return false;
     }
-    return success;
   }, [loadAccount]);
 
   return {
