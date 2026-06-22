@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { User, Link2, LogOut, Shield, Gamepad2, Loader2, CheckCircle2, AlertCircle, BadgeCheck, Fingerprint, CalendarDays, RefreshCw, Download } from 'lucide-react';
 import { useAccount } from '../hooks/useAccount';
 import { checkForUpdate, installUpdate, onUpdaterProgress, type UpdateInfo, type UpdateProgress } from '../lib/updater';
@@ -68,7 +68,12 @@ function AccountSkeleton() {
 }
 
 export default function AccountPage() {
-  const { account, isLoading, isAuthenticated, login, loginHwid, logout, linkMinecraft, linkDiscord } = useAccount();
+  const { account, isLoading, isAuthenticated, login, loginHwid, recoverByKey, logout, linkMinecraft, linkDiscord } = useAccount();
+  const [showRecoverForm, setShowRecoverForm] = useState(false);
+  const [recoverKey, setRecoverKey] = useState('');
+  const [recovering, setRecovering] = useState(false);
+  const [recoverError, setRecoverError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [linkCode, setLinkCode] = useState('');
   const [linking, setLinking] = useState(false);
   const [linkSuccess, setLinkSuccess] = useState(false);
@@ -154,6 +159,44 @@ export default function AccountPage() {
     }
   };
 
+  const handleRecover = async () => {
+    const key = recoverKey.trim().toUpperCase();
+    if (!/^[A-Z0-9]{32}$/.test(key)) {
+      setRecoverError('Введите 32-символьный ключ аккаунта');
+      return;
+    }
+    setRecovering(true);
+    setRecoverError(null);
+    try {
+      await recoverByKey(key);
+      setRecoverKey('');
+      setShowRecoverForm(false);
+    } catch (error) {
+      setRecoverError(error instanceof Error ? error.message : 'Не удалось восстановить аккаунт');
+    } finally {
+      setRecovering(false);
+    }
+  };
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      const match = text.match(/^account\.key\s*=\s*([A-Za-z0-9]{32})\s*$/m);
+      if (match) {
+        setRecoverKey(match[1].toUpperCase());
+        setRecoverError(null);
+      } else {
+        setRecoverError('В файле не найден account.key');
+      }
+    };
+    reader.onerror = () => setRecoverError('Не удалось прочитать файл');
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   if (discordLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -170,6 +213,77 @@ export default function AccountPage() {
 
   if (isLoading) {
     return <AccountSkeleton />;
+  }
+
+  if (showRecoverForm) {
+    return (
+      <div className="h-full overflow-y-auto p-10">
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-8">
+            <p className="font-mono text-xs tracking-[4px] text-green mb-3">// RECOVERY</p>
+            <h2 className="font-bold text-3xl text-text mb-2">Восстановить аккаунт</h2>
+            <p className="text-sm text-text-secondary">
+              Введите ключ из файла account-&#123;id&#125;.properties или импортируйте сам файл.
+            </p>
+          </div>
+
+          <div className="glass-panel rounded-2xl p-8 space-y-5">
+            <input
+              type="text"
+              value={recoverKey}
+              onChange={(e) => setRecoverKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32))}
+              placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+              className="w-full bg-bg/50 border border-border rounded-xl px-4 py-3 text-sm font-mono tracking-widest text-text placeholder:text-text-secondary/50 focus:outline-none focus:border-green"
+              disabled={recovering}
+            />
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".properties"
+              onChange={handleFileImport}
+              className="hidden"
+            />
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={recovering}
+              className="w-full py-3 rounded-xl font-medium text-sm text-text-secondary hover:text-text bg-white/[0.03] border border-border hover:border-border-hover transition-all disabled:opacity-50"
+            >
+              Импорт из файла
+            </button>
+
+            {recoverError && (
+              <div className="flex items-start gap-2 text-red-400 text-xs">
+                <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                <span>{recoverError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  setShowRecoverForm(false);
+                  setRecoverKey('');
+                  setRecoverError(null);
+                }}
+                disabled={recovering}
+                className="py-3 rounded-xl font-medium text-sm text-text-secondary hover:text-text bg-white/[0.03] border border-border hover:border-border-hover transition-all disabled:opacity-50"
+              >
+                Назад
+              </button>
+              <button
+                onClick={handleRecover}
+                disabled={recovering || recoverKey.length !== 32}
+                className="py-3 rounded-xl font-semibold text-sm text-bg bg-green hover:bg-green/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {recovering ? <Loader2 className="animate-spin" size={16} /> : 'Восстановить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
@@ -229,6 +343,14 @@ export default function AccountPage() {
                 ) : (
                   'Войти / создать аккаунт'
                 )}
+              </button>
+
+              <button
+                onClick={() => setShowRecoverForm(true)}
+                disabled={isLoading}
+                className="w-full py-3.5 rounded-xl font-medium text-sm text-text-secondary hover:text-text bg-white/[0.03] border border-border hover:border-border-hover transition-all disabled:opacity-50"
+              >
+                Восстановить по ключу
               </button>
             </div>
           </div>

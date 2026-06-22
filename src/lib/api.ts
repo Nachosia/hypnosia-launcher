@@ -410,6 +410,31 @@ export async function loginWithDiscord(): Promise<Account> {
   });
 }
 
+export async function recoverAccountByKey(accountKey: string): Promise<Account> {
+  const hwid = await getHardwareId();
+  const response = await fetch(`${API_BASE}/api/launcher/recover-by-key`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accountKey: accountKey.toUpperCase(), hwid }),
+  });
+
+  const data = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    message?: string;
+    authenticated?: boolean;
+  };
+
+  if (!response.ok || data.error) {
+    throw new Error(data.error || data.message || `Server error: ${response.status}`);
+  }
+
+  const account = await fetchAccountByHwid(hwid);
+  if (!account) {
+    throw new Error('RECOVERY_SUCCEEDED_BUT_FETCH_FAILED');
+  }
+  return account;
+}
+
 export async function linkMinecraftAccount(
   hwid: string,
   code: string

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Account, AuthState } from '../types/account';
-import { getHardwareId, fetchAccountByHwid, loginWithDiscord, loginWithHwid, linkMinecraftAccount, linkDiscordAccount } from '../lib/api';
+import { getHardwareId, fetchAccountByHwid, loginWithDiscord, loginWithHwid, recoverAccountByKey, linkMinecraftAccount, linkDiscordAccount } from '../lib/api';
 
 const STORAGE_KEY = 'hypnosia_account_v2';
 
@@ -149,6 +149,26 @@ export function useAccount() {
     });
   }, []);
 
+  const recoverByKey = useCallback(async (accountKey: string) => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    try {
+      const account = await recoverAccountByKey(accountKey);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
+      setState({
+        account,
+        isLoading: false,
+        isAuthenticated: true,
+        error: null,
+      });
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Recovery failed',
+      }));
+    }
+  }, []);
+
   const linkMinecraft = useCallback(
     async (code: string): Promise<{ success: boolean; error?: string; message?: string }> => {
       const hwid = await getHardwareId();
@@ -184,6 +204,7 @@ export function useAccount() {
     ...state,
     login,
     loginHwid,
+    recoverByKey,
     logout,
     linkMinecraft,
     linkDiscord,
